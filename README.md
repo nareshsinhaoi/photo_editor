@@ -38,6 +38,20 @@ No frontend build step. No bundler. Just open the browser.
 
 ## Getting Started
 
+# 1. Create and activate a virtualenv
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# macOS/Linux:
+source .venv/bin/activate
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Run
+python run.py
+# → open http://127.0.0.1:8000
+
 ### 1. Clone and enter the project
 
 ```bash
