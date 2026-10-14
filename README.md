@@ -1,4 +1,4 @@
-# Pixel Studio
+# Photo Studio
 
 A web-based advanced photo editor built with FastAPI, Pillow, and vanilla JavaScript. Runs locally in the browser and supports layers, collage, and metadata editing.
 
@@ -43,3 +43,7 @@ No frontend build step. No bundler. Just open the browser.
 ```bash
 git clone <your-repo-url> photo-editor
 cd photo-editor
+>.venv\Scripts\activate
+>pip install -r requirements.txt
+>.venv\Scripts\deactivate
+ 
