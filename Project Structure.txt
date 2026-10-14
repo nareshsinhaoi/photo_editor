@@ -1,0 +1,42 @@
+photo-editor/
+├── app/
+│   ├── __init__.py
+│   ├── main.py                  # FastAPI app entry point
+│   ├── config.py                # Settings (max upload size, allowed types)
+│   ├── routes/
+│   │   ├── __init__.py
+│   │   ├── upload.py            # POST /upload
+│   │   ├── process.py           # POST /process  (adjustments/filters)
+│   │   └── export.py            # POST /export   (JPG/PNG/WebP)
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── adjustments.py       # brightness/contrast/saturation/etc.
+│   │   ├── filters.py           # B&W, sepia, vintage, etc.
+│   │   └── transforms.py        # crop/rotate/flip/resize (server-side)
+│   ├── utils/
+│   │   ├── __init__.py
+│   │   └── validators.py        # file type & size checks
+│   ├── static/
+│   │   ├── css/style.css
+│   │   ├── js/
+│   │   │   ├── main.js          # app bootstrap
+│   │   │   ├── canvas.js        # canvas + layer rendering
+│   │   │   ├── filters.js       # client-side pixel filters
+│   │   │   ├── crop.js          # crop UI overlay
+│   │   │   ├── history.js       # undo/redo stack
+│   │   │   └── api.js           # fetch wrappers
+│   │   └── uploads/             # temp storage (gitignored)
+│   └── templates/
+│       └── index.html
+├── requirements.txt
+├── run.py                       # uvicorn launcher
+└── README.md
+
+
+
+
+(.venv) D:\PY\photo-editor>.venv\Scripts\activate
+
+(.venv) D:\PY\photo-editor>.venv\Scripts\deactivate
+
+D:\PY\photo-editor>pip install -r requirements.txt

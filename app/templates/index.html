@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <link rel="shortcut icon" href="https://fea.assettype.com/outlook/outlook-india/assets/favicon.ico" type="image/x-icon">
+  <link rel="apple-touch-icon" href="https://fea.assettype.com/outlook/outlook-india/assets/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="https://fea.assettype.com/outlook/outlook-india/assets/favicon.ico">
+
+  <title>Outlook Studio — Advanced Photo Editor</title>
+  <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">
+        <img src="/static/O-sm.png" alt="Outlook Studio" />
+      </div>
+      <div>
+        <div class="brand-name">Outlook Studio</div>
+        <div class="brand-sub">Advanced Photo Editor</div>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button id="btn-undo" title="Ctrl+Z" disabled>↶ Undo</button>
+      <button id="btn-redo" title="Ctrl+Y" disabled>↷ Redo</button>
+      <button id="btn-reset" title="Reset to original">Reset</button>
+      <button id="btn-compare" title="Hold to compare with original">Compare</button>
+      <button id="btn-export" class="primary">Export</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <!-- LEFT TOOLBAR -->
+    <aside class="toolbar" aria-label="Tools">
+      <button data-panel="adjust"    class="tool active"><span class="ico">◐</span>Adjust</button>
+      <button data-panel="filters"   class="tool"><span class="ico">✦</span>Filters</button>
+      <button data-panel="crop"      class="tool"><span class="ico">▢</span>Crop</button>
+      <button data-panel="transform" class="tool"><span class="ico">⟳</span>Transform</button>
+      <button data-panel="fit"       class="tool"><span class="ico">⇱</span>Canvas</button>
+      <button data-panel="layers"    class="tool"><span class="ico">▤</span>Layers</button>
+      <button data-panel="collage"   class="tool"><span class="ico">▦</span>Collage</button>
+      <button data-panel="metadata"  class="tool"><span class="ico">ⓘ</span>Info</button>
+      <label class="tool upload-btn" title="Upload image">
+        <span class="ico">↑</span>Upload
+        <input type="file" id="file-input" accept="image/*" hidden />
+      </label>
+    </aside>
+
+    <!-- CANVAS -->
+    <section class="canvas-wrap" id="drop-zone">
+      <div class="canvas-inner">
+        <canvas id="canvas"></canvas>
+        <canvas id="overlay"></canvas>
+      </div>
+      <div class="placeholder" id="placeholder">
+        <div class="ph-icon">🖼</div>
+        <p class="ph-title">Drop an image to start</p>
+        <p class="ph-sub">or click <strong>Upload</strong> in the left toolbar</p>
+        <p class="hint">JPG · PNG · WebP · BMP — up to 25 MB</p>
+      </div>
+    </section>
+
+    <!-- RIGHT PROPERTIES PANEL -->
+    <aside class="panel" id="panel">
+
+      <!-- ADJUST -->
+      <div class="panel-section" data-panel="adjust">
+        <h3>Adjustments</h3>
+        <label>Brightness <input type="range" data-adj="brightness" min="-100" max="100" value="0"></label>
+        <label>Exposure   <input type="range" data-adj="exposure"   min="-100" max="100" value="0"></label>
+        <label>Contrast   <input type="range" data-adj="contrast"   min="-100" max="100" value="0"></label>
+        <label>Saturation <input type="range" data-adj="saturation" min="-100" max="100" value="0"></label>
+        <label>Temperature<input type="range" data-adj="temperature"min="-100" max="100" value="0"></label>
+        <label>Sharpness  <input type="range" data-adj="sharpness"  min="-100" max="100" value="0"></label>
+        <label>Blur       <input type="range" data-adj="blur"       min="0"    max="20"  value="0"></label>
+      </div>
+
+      <!-- FILTERS -->
+      <div class="panel-section hidden" data-panel="filters">
+        <h3>Presets</h3>
+        <div class="preset-grid">
+          <button data-filter="none" class="active">None</button>
+          <button data-filter="bw">B&amp;W</button>
+          <button data-filter="sepia">Sepia</button>
+          <button data-filter="vintage">Vintage</button>
+          <button data-filter="vivid">Vivid</button>
+          <button data-filter="cool">Cool</button>
+          <button data-filter="warm">Warm</button>
+        </div>
+        <h3>Effects</h3>
+        <label>Vignette <input type="range" data-adj="vignette" min="0" max="100" value="0"></label>
+        <label>Grain    <input type="range" data-adj="grain"    min="0" max="100" value="0"></label>
+      </div>
+
+      <!-- CROP -->
+      <div class="panel-section hidden" data-panel="crop">
+        <h3>Crop</h3>
+        <div class="preset-grid">
+          <button data-ratio="free" class="active">Free</button>
+          <button data-ratio="1:1">1:1</button>
+          <button data-ratio="4:3">4:3</button>
+          <button data-ratio="3:2">3:2</button>
+          <button data-ratio="16:9">16:9</button>
+        </div>
+        <p class="hint">Drag handles to resize. Drag inside to move.</p>
+        <div class="row">
+          <button id="btn-apply-crop" class="primary">Apply</button>
+          <button id="btn-cancel-crop">Cancel</button>
+        </div>
+      </div>
+
+      <!-- TRANSFORM -->
+      <div class="panel-section hidden" data-panel="transform">
+        <h3>Rotate &amp; Flip</h3>
+        <div class="col">
+          <button data-tr="rotate-cw">↻ Rotate 90° CW</button>
+          <button data-tr="rotate-ccw">↺ Rotate 90° CCW</button>
+          <button data-tr="flip-h">⇄ Flip Horizontal</button>
+          <button data-tr="flip-v">⇅ Flip Vertical</button>
+        </div>
+      </div>
+
+      <!-- CANVAS FIT -->
+      <div class="panel-section hidden" data-panel="fit">
+        <h3>Canvas Size</h3>
+        <p class="hint">
+          Make a vertical photo horizontal (or any shape) without cropping it.
+          The empty space is filled with your chosen background.
+        </p>
+
+        <div class="grid-2">
+          <label>Width  <input type="number" id="fit-w" min="16" max="8000" step="1"></label>
+          <label>Height <input type="number" id="fit-h" min="16" max="8000" step="1"></label>
+        </div>
+
+        <h3>Aspect Presets</h3>
+        <div class="preset-grid">
+          <button data-fit="square">1:1</button>
+          <button data-fit="landscape-16-9">16:9</button>
+          <button data-fit="landscape-4-3">4:3</button>
+          <button data-fit="portrait-9-16">9:16</button>
+          <button data-fit="portrait-3-4">3:4</button>
+          <button data-fit="swap">Swap W↔H</button>
+        </div>
+
+        <h3>Background</h3>
+        <label>Fill mode
+          <select id="fit-mode">
+            <option value="blur" selected>Blur (recommended)</option>
+            <option value="color">Solid color</option>
+            <option value="transparent">Transparent (PNG)</option>
+            <option value="contain">Letterbox</option>
+          </select>
+        </label>
+        <label id="fit-color-row" class="hidden">
+          Background color
+          <input type="color" id="fit-color" value="#ffffff">
+        </label>
+
+        <label>Anchor
+          <select id="fit-anchor">
+            <option value="center" selected>Center</option>
+            <option value="top">Top</option>
+            <option value="bottom">Bottom</option>
+            <option value="left">Left</option>
+            <option value="right">Right</option>
+          </select>
+        </label>
+
+        <div class="row">
+          <button id="btn-apply-fit" class="primary">Apply</button>
+          <button id="btn-reset-fit">Reset</button>
+        </div>
+      </div>
+
+      <!-- LAYERS -->
+      <div class="panel-section hidden" data-panel="layers">
+        <h3>Create Canvas</h3>
+        <div class="card">
+          <h4>New Blank Canvas</h4>
+          <div class="grid-2">
+            <label>Width  <input type="number" id="new-w" min="16" max="8000" value="1080"></label>
+            <label>Height <input type="number" id="new-h" min="16" max="8000" value="1080"></label>
+          </div>
+          <div class="preset-grid" style="grid-template-columns:repeat(2,1fr)">
+            <button data-new-preset="1080x1080">1080×1080 Sq</button>
+            <button data-new-preset="1080x1350">1080×1350 Pt</button>
+            <button data-new-preset="1920x1080">1920×1080 Ld</button>
+            <button data-new-preset="1200x628">1200×628 Bn</button>
+          </div>
+          <label>Background
+            <select id="new-bg-mode">
+              <option value="color" selected>Solid color</option>
+              <option value="transparent">Transparent</option>
+            </select>
+          </label>
+          <label id="new-bg-color-row">Color
+            <input type="color" id="new-bg-color" value="#ffffff">
+          </label>
+          <button id="btn-create-canvas" class="primary" style="width:100%">Create Canvas</button>
+        </div>
+
+        <h3>Add Image Layer</h3>
+        <label class="upload-btn" style="display:block;text-align:center;padding:10px;border:1px dashed var(--border-2);border-radius:8px;cursor:pointer">
+          + Add Image on Top
+          <input type="file" id="layer-file" accept="image/*" hidden>
+        </label>
+
+        <h3>Layers</h3>
+        <div id="layer-list" class="layer-list"><p class="hint">No layers yet.</p></div>
+
+        <h3>Selected Layer</h3>
+        <label>Opacity <input type="range" id="layer-opacity" min="0" max="100" value="100"></label>
+        <div class="grid-2">
+          <label>X <input type="number" id="layer-x" step="1"></label>
+          <label>Y <input type="number" id="layer-y" step="1"></label>
+        </div>
+        <div class="grid-2">
+          <label>W <input type="number" id="layer-w" step="1"></label>
+          <label>H <input type="number" id="layer-h" step="1"></label>
+        </div>
+        <div class="row">
+          <button id="layer-rotate-l">↺ 90°</button>
+          <button id="layer-rotate-r">↻ 90°</button>
+        </div>
+        <div class="row">
+          <button id="layer-flip-h">Flip H</button>
+          <button id="layer-flip-v">Flip V</button>
+        </div>
+        <div class="row">
+          <button id="layer-front">To Front</button>
+          <button id="layer-forward">Forward</button>
+        </div>
+        <div class="row">
+          <button id="layer-backward">Backward</button>
+          <button id="layer-back">To Back</button>
+        </div>
+        <div class="row">
+          <button id="layer-rename">Rename</button>
+          <button id="layer-delete" class="primary" style="background:var(--danger);border-color:var(--danger)">Delete</button>
+        </div>
+      </div>
+
+      <!-- COLLAGE -->
+      <div class="panel-section hidden" data-panel="collage">
+        <h3>Images</h3>
+        <label class="upload-btn" style="display:block;text-align:center;padding:10px;border:1px dashed var(--border-2);border-radius:8px;cursor:pointer">
+          + Add Images
+          <input type="file" id="collage-files" accept="image/*" multiple hidden>
+        </label>
+        <div id="collage-thumbs" class="collage-thumbs"></div>
+        <p class="hint" id="collage-count">0 images</p>
+
+        <h3>Layout</h3>
+        <div class="template-grid" id="collage-templates">
+          <button data-tpl="2-h" class="active"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="17" height="36" fill="currentColor" opacity=".5"/><rect x="21" y="2" width="17" height="36" fill="currentColor" opacity=".5"/></svg>2 Side</button>
+          <button data-tpl="2-v"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="17" fill="currentColor" opacity=".5"/><rect x="2" y="21" width="36" height="17" fill="currentColor" opacity=".5"/></svg>2 Stack</button>
+          <button data-tpl="3-h"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="11" height="36" fill="currentColor" opacity=".5"/><rect x="14.5" y="2" width="11" height="36" fill="currentColor" opacity=".5"/><rect x="27" y="2" width="11" height="36" fill="currentColor" opacity=".5"/></svg>3 Col</button>
+          <button data-tpl="3-1plus2"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="17" fill="currentColor" opacity=".5"/><rect x="2" y="21" width="17" height="17" fill="currentColor" opacity=".5"/><rect x="21" y="21" width="17" height="17" fill="currentColor" opacity=".5"/></svg>3 Top</button>
+          <button data-tpl="4-grid"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="17" height="17" fill="currentColor" opacity=".5"/><rect x="21" y="2" width="17" height="17" fill="currentColor" opacity=".5"/><rect x="2" y="21" width="17" height="17" fill="currentColor" opacity=".5"/><rect x="21" y="21" width="17" height="17" fill="currentColor" opacity=".5"/></svg>4 Grid</button>
+          <button data-tpl="4-wide"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="36" height="24" fill="currentColor" opacity=".5"/><rect x="2" y="28" width="11" height="10" fill="currentColor" opacity=".5"/><rect x="14.5" y="28" width="11" height="10" fill="currentColor" opacity=".5"/><rect x="27" y="28" width="11" height="10" fill="currentColor" opacity=".5"/></svg>4 Wide</button>
+          <button data-tpl="6-grid"><svg viewBox="0 0 40 40"><g opacity=".5" fill="currentColor"><rect x="2" y="2" width="11" height="11"/><rect x="14.5" y="2" width="11" height="11"/><rect x="27" y="2" width="11" height="11"/><rect x="2" y="15" width="11" height="11"/><rect x="14.5" y="15" width="11" height="11"/><rect x="27" y="15" width="11" height="11"/></g></svg>6 Grid</button>
+          <button data-tpl="9-grid"><svg viewBox="0 0 40 40"><g opacity=".5" fill="currentColor"><rect x="2" y="2" width="10" height="10"/><rect x="15" y="2" width="10" height="10"/><rect x="28" y="2" width="10" height="10"/><rect x="2" y="15" width="10" height="10"/><rect x="15" y="15" width="10" height="10"/><rect x="28" y="15" width="10" height="10"/><rect x="2" y="28" width="10" height="10"/><rect x="15" y="28" width="10" height="10"/><rect x="28" y="28" width="10" height="10"/></g></svg>9 Grid</button>
+          <button data-tpl="asym-1"><svg viewBox="0 0 40 40"><rect x="2" y="2" width="24" height="36" fill="currentColor" opacity=".5"/><rect x="28" y="2" width="10" height="17" fill="currentColor" opacity=".5"/><rect x="28" y="21" width="10" height="17" fill="currentColor" opacity=".5"/></svg>Asym A</button>
+        </div>
+
+        <h3>Output Size</h3>
+        <div class="grid-2">
+          <label>Width  <input type="number" id="collage-w" min="64" max="8000" value="1080"></label>
+          <label>Height <input type="number" id="collage-h" min="64" max="8000" value="1080"></label>
+        </div>
+        <div class="preset-grid" style="grid-template-columns:repeat(2,1fr)">
+          <button data-collage-preset="1080x1080">1080²</button>
+          <button data-collage-preset="1080x1350">1080×1350</button>
+          <button data-collage-preset="1920x1080">1920×1080</button>
+          <button data-collage-preset="1200x1200">1200²</button>
+        </div>
+
+        <h3>Style</h3>
+        <label>Spacing (gap) <input type="range" id="collage-gap" min="0" max="60" value="8"></label>
+        <label>Outer border <input type="range" id="collage-border" min="0" max="60" value="12"></label>
+        <label>Corner radius <input type="range" id="collage-radius" min="0" max="60" value="8"></label>
+        <label>Background <input type="color" id="collage-bg" value="#ffffff"></label>
+
+        <h3>Selected Frame</h3>
+        <label>Fit mode
+          <select id="collage-fit">
+            <option value="cover" selected>Fill (cover, may crop)</option>
+            <option value="contain">Fit (contain)</option>
+          </select>
+        </label>
+        <label>Zoom <input type="range" id="collage-zoom" min="100" max="250" value="100"></label>
+        <div class="grid-2">
+          <label>Pan X <input type="range" id="collage-pan-x" min="-100" max="100" value="0"></label>
+          <label>Pan Y <input type="range" id="collage-pan-y" min="-100" max="100" value="0"></label>
+        </div>
+        <div class="row">
+          <button id="collage-swap">Swap Pick</button>
+          <button id="collage-clear-sel">Clear Sel</button>
+        </div>
+
+        <div class="row">
+          <button id="collage-apply" class="primary">Render Collage</button>
+          <button id="collage-export">Export PNG</button>
+        </div>
+      </div>
+
+      <!-- METADATA -->
+      <div class="panel-section hidden" data-panel="metadata">
+        <h3>File Information</h3>
+        <div id="meta-basic" class="meta-list"><p class="hint">No image loaded.</p></div>
+
+        <h3>EXIF</h3>
+        <div id="meta-exif" class="meta-list"></div>
+
+        <h3>GPS</h3>
+        <div id="meta-gps" class="meta-list"></div>
+
+        <h3>Edit Metadata</h3>
+        <p class="hint">Edit common tags, then click Save. Empty fields remove the tag.</p>
+        <label>Artist / Author <input type="text" data-meta-field="Artist"></label>
+        <label>Copyright      <input type="text" data-meta-field="Copyright"></label>
+        <label>Software       <input type="text" data-meta-field="Software"></label>
+        <label>Image Description <input type="text" data-meta-field="ImageDescription"></label>
+        <div class="row">
+          <button id="btn-save-meta" class="primary">Save Metadata</button>
+          <button id="btn-strip-meta">Strip All</button>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <footer class="footer">
+    <div class="footer-left">
+      <span id="status">Ready</span>
+    </div>
+    <div class="footer-center" id="dim-readout">—</div>
+    <div class="footer-right">
+      <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> Undo ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">Y</span> Redo ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">S</span> Export ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">O</span> Open ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">L</span> Layers ·
+      <span class="kbd">Ctrl</span>+<span class="kbd">K</span> Collage
+    </div>
+  </footer>
+
+  <div class="modal hidden" id="export-modal">
+    <div class="modal-content">
+      <h3>Export Image</h3>
+      <label>Format
+        <select id="export-format">
+          <option value="png">PNG (lossless)</option>
+          <option value="jpg">JPG</option>
+          <option value="webp" selected>WebP (recommended)</option>
+        </select>
+      </label>
+      <label>Quality <input type="range" id="export-quality" min="10" max="100" value="92">
+        <span id="quality-val">92</span></label>
+      <div class="modal-actions">
+        <button id="btn-cancel-export">Cancel</button>
+        <button id="btn-do-export" class="primary">Download</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="loader" class="loader hidden"><div class="spinner"></div></div>
+
+  <script type="module" src="/static/js/main.js"></script>
+</body>
+</html>
