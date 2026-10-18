@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
@@ -5,9 +7,9 @@ from fastapi.templating import Jinja2Templates
 from fastapi.requests import Request
 
 from app.config import STATIC_DIR, TEMPLATES_DIR
-from app.routes import upload, process, export, metadata, canvas_fit, layers, collage
+from app.routes import upload, process, export, metadata, canvas_fit, layers, collage, bg
 
-app = FastAPI(title="Pixel Studio")
+app = FastAPI(title="Outlook Studio")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
@@ -19,7 +21,13 @@ app.include_router(metadata.router,   tags=["metadata"])
 app.include_router(canvas_fit.router, tags=["canvas"])
 app.include_router(layers.router,     tags=["layers"])
 app.include_router(collage.router,    tags=["collage"])
+app.include_router(bg.router,         tags=["background"])
+
 
 @app.get("/", response_class=HTMLResponse)
 def index(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "year": datetime.now().year,
+        "title": "Pixel Studio"
+    })

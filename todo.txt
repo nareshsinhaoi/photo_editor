@@ -1,0 +1,318 @@
+Great — here's a prioritized roadmap. I've grouped it by impact vs. effort so you can pick what to tackle first instead of trying to do everything at once.
+
+---
+
+## Tier 1 — Small wins, big perceived quality (do these first)
+
+### 1. Loading skeletons instead of a blank canvas
+Right now when you open a heavy image, the canvas is empty until decode finishes. Add a shimmer placeholder inside `.canvas-wrap` that shows for the first 200–500ms.
+
+```html
+<div class="canvas-skeleton" id="canvas-skeleton" hidden></div>
+```
+```css
+.canvas-skeleton {
+  position: absolute; inset: 24px;
+  background: linear-gradient(90deg, #eceef2 25%, #f5f6f9 37%, #eceef2 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: 8px;
+}
+@keyframes shimmer { 0% { background-position: 100% 0 } 100% { background-position: 0 0 } }
+```
+Show it while `loadFromUrl` is in-flight. Feels instant and professional.
+
+### 2. Draggable slider labels with numeric readout
+Next to each slider, show the current value. Users can also click it to type an exact number.
+
+```html
+<label>
+  Brightness
+  <span class="adj-value" contenteditable="true">0</span>
+  <input type="range" data-adj="brightness" ...>
+</label>
+```
+```css
+.adj-value {
+  align-self: flex-end;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  font-size: 11px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  cursor: text;
+}
+```
+
+### 3. Reset per-tool button (double-click any slider to reset)
+Add this one-liner to every `[data-adj]` slider:
+
+```js
+input.addEventListener("dblclick", () => {
+  input.value = 0;
+  currentState.adjustments[input.dataset.adj] = 0;
+  renderer.render(currentState);
+  history.push(currentState);
+});
+```
+
+### 4. Cursor styles on canvas regions
+Change the mouse cursor based on where you are — crosshair on crop, `grab` on a layer, `ns-resize`/`ew-resize` on crop edges. Your `crop.js` already draws handles; just update `overlay.style.cursor` in `pointermove`:
+
+```js
+overlay.style.cursor = {
+  nw: "nwse-resize", se: "nwse-resize",
+  ne: "nesw-resize", sw: "nesw-resize",
+  n: "ns-resize", s: "ns-resize",
+  e: "ew-resize", w: "ew-resize",
+  move: "move",
+}[mode] || "crosshair";
+```
+
+### 5. Toast stacking
+Right now a new toast replaces the old. Queue them: max 3 visible, auto-dismiss staggered.
+
+### 6. Empty-state illustrations
+Replace the current "Drop an image" text with a small SVG. Same for each panel's empty list (`No layers yet`, `0 images`, `No EXIF data`). Makes the app feel designed rather than stubbed.
+
+### 7. Favicon + browser tab
+Add `favicon.ico` and set `<link rel="icon" href="/static/favicon.ico">`. Also update the `<title>` dynamically:
+
+```js
+document.title = `${layerCount} layers · Pixel Studio`;
+```
+
+---
+
+## Tier 2 — Real features that users will ask for
+
+### 8. Text tool
+The single most requested feature after layers. Add a new layer type:
+
+```js
+{ id, type: "text", text, font, size, color, weight, x, y, rotation, opacity }
+```
+Render text to a `sourceCanvas` with `ctx.fillText`, then it behaves exactly like an image layer. Font picker uses a curated list (Inter, Georgia, Impact, Courier…) to avoid needing webfonts.
+
+### 9. Sticker/emoji picker
+Small grid of emoji + simple shapes (arrow, star, badge) that insert as layers. Zero backend work — everything client-side.
+
+### 10. Background removal
+You already listed `rembg` as optional. Wire it in:
+
+```python
+# app/services/bg.py
+from rembg import remove
+from PIL import Image
+from io import BytesIO
+
+def strip_background(img: Image.Image) -> Image.Image:
+    return remove(img).convert("RGBA")
+```
+
+```python
+# app/routes/bg.py
+@router.post("/remove-bg")
+async def remove_bg(file: UploadFile = File(...)):
+    ...
+```
+
+Add a single button in the Adjust panel: **Remove Background**. First-run cost is ~50 MB model download, so cache it under `~/.u2net/`.
+
+### 11. Preset save/load
+Let users save the current adjustments + filter as a named preset, stored in `localStorage`. A tiny dropdown at the top of the Adjust panel: "My presets ▾". Zero backend.
+
+### 12. Copy/paste styles between layers
+Select a layer, `Ctrl+Shift+C` copies opacity + blend + adjustments. `Ctrl+Shift+V` pastes onto another layer. Very "pro tool" feel.
+
+### 13. Batch processing
+Upload N images, apply the same adjustment stack, download a ZIP. Server-side:
+
+```python
+import zipfile
+@app.post("/batch")
+async def batch(files: list[UploadFile], recipe: dict):
+    z = BytesIO()
+    with zipfile.ZipFile(z, "w", zipfile.ZIP_DEFLATED) as zipf:
+        for f in files:
+            img = process_image(await f.read(), recipe)
+            zipf.writestr(f"out/{f.filename}", img)
+    return Response(z.getvalue(), media_type="application/zip")
+```
+
+Useful for people editing product photos.
+
+### 14. Compare slider (before/after wipe)
+You currently have a "hold to compare" button. Replace or augment with a draggable split line:
+
+```
+[ original | edited ]
+       ↑ drag me
+```
+Implement by rendering both into a single canvas and clipping at the divider x-position. This is a Pixlr/Snapseed staple.
+
+### 15. Aspect-ratio lock toggle
+In the Layers panel's W/H fields, add a small chain-link icon between them. Off = independent W and H (distorts), on = preserve ratio. Currently ratio is always forced.
+
+---
+
+## Tier 3 — Making it feel like a product
+
+### 16. Persist project state
+Layers, adjustments, filters → `localStorage` every 2 seconds. On reload, offer to "Restore previous session?" Add a "Clear project" button. Users hate losing work.
+
+```js
+setInterval(() => {
+  localStorage.setItem("pixelstudio.state", JSON.stringify(currentState));
+}, 2000);
+```
+
+For layers (which have binary sources), store dataURLs in IndexedDB — `localStorage` has a 5 MB cap.
+
+### 17. Project file (`.pixelstudio` JSON)
+Export/import the whole editing session as a single file. Gives users a way to save mid-edit and come back later.
+
+### 18. Drag-and-drop from OS straight onto a specific frame
+Right now dropping onto the canvas uploads a single image. Extend: if Collage panel is open, drop fills the selected frame; if Layers is open, drop adds a new layer; else uploads the main image.
+
+### 19. Keyboard-nudge
+Arrow keys nudge the selected layer by 1px. Shift+arrows by 10px.
+
+```js
+document.addEventListener("keydown", (e) => {
+  if (!selectedLayer) return;
+  const step = e.shiftKey ? 10 : 1;
+  if (e.key === "ArrowLeft")  selectedLayer.x -= step;
+  if (e.key === "ArrowRight") selectedLayer.x += step;
+  if (e.key === "ArrowUp")    selectedLayer.y -= step;
+  if (e.key === "ArrowDown")  selectedLayer.y += step;
+  renderAll();
+  e.preventDefault();
+});
+```
+
+### 20. Snap-to guides
+When dragging a layer, snap to canvas center and edges when within ~6px. Draw thin pink guides like Canva/Figma.
+
+### 21. Right-click context menu on canvas
+Cut/copy/paste/duplicate/delete layer, "Flip horizontally", "Center on canvas". One contextmenu listener, one absolutely-positioned div.
+
+### 22. Accessibility pass
+- ARIA labels on every icon button.
+- Focus rings with `:focus-visible`.
+- Announce toasts via `aria-live="polite"`.
+- Respect `prefers-reduced-motion`.
+- Ensure contrast ratio ≥ 4.5 for all text.
+
+### 23. Onboarding tour
+First-time users get a 5-step tooltip walkthrough: Upload → Adjust → Filters → Layers → Export. Store "seen" flag in `localStorage`.
+
+---
+
+## Tier 4 — Production polish
+
+### 24. Real backend storage
+Replace `app/static/uploads/` with:
+- **SQLite** for metadata (upload time, original filename, owner).
+- **Filesystem or S3** for the actual bytes.
+- A cleanup job that deletes uploads older than N hours.
+
+### 25. Rate limiting
+`slowapi` for FastAPI. Protect `/upload`, `/process`, `/layers/export`, `/collage/render`. Simple per-IP token bucket.
+
+### 26. Streaming uploads
+Currently the server reads the whole file into memory (`await file.read()`). For >100 MB files, stream to disk in chunks:
+
+```python
+async with aiofiles.open(dest, "wb") as f:
+    while chunk := await file.read(1024 * 1024):
+        await f.write(chunk)
+```
+
+### 27. Move heavy work off the event loop
+`/process`, `/layers/export`, `/collage/render` are sync functions doing Pillow work. They currently block the worker. Either:
+- Use `def` (not `async def`) so FastAPI runs them in a thread pool — you mostly do this already for `/process`. Confirm `/collage/render` and `/layers/export` are sync.
+- Or run a Celery/RQ queue for jobs > 5 seconds.
+
+### 28. Sentry / structured logs
+`structlog` for JSON logs, `sentry-sdk` for crash reports. One line each.
+
+### 29. Docker
+```dockerfile
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+EXPOSE 8000
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+```
+
+Plus a `docker-compose.yml` for local dev with a volume mount for hot reload.
+
+### 30. Health endpoint + readiness probe
+```python
+@app.get("/health")
+def health():
+    return {"status": "ok", "version": APP_VERSION}
+```
+
+---
+
+## Tier 5 — Things that make it *feel* premium
+
+### 31. Micro-animations
+- Slider thumb grows on hover (2px → 4px).
+- Tool buttons do a subtle scale `1 → 1.03` on press.
+- Panel switches fade + slide 4px.
+- Toast enters from bottom with a spring curve.
+
+All CSS, no libs, ~30 lines total.
+
+### 32. Sound effects (optional, muteable)
+A soft click on button press, tiny whoosh on filter apply. Ship them muted; users opt in. Sounds gimmicky until it's a real product, then it's table stakes.
+
+### 33. Ambient canvas background
+Instead of the checkerboard everywhere, use a soft radial gradient tinted by the current image's dominant color. Adds cohesion and looks expensive.
+
+```js
+const color = getDominantColor(canvas);   // sample + average
+document.querySelector(".canvas-wrap").style.backgroundImage =
+  `radial-gradient(circle at 50% 40%, ${color}22, transparent 70%)`;
+```
+
+### 34. Shortcut hint overlay
+Press `?` to show a modal listing every keyboard shortcut. Common in Linear, Notion, Figma. Users feel like they've unlocked something.
+
+### 35. Preset thumbnails
+Under the Filters panel, show each preset rendered on a 60×60 crop of the user's actual image, not just text buttons. Massive perceived-quality boost.
+
+---
+
+## Recommended order if you want the biggest payoff for the least work
+
+1. **Loading skeleton** (#1) — 15 min
+2. **Slider numeric readouts** (#2) — 20 min
+3. **Double-click to reset** (#3) — 5 min
+4. **Cursor styles** (#4) — 15 min
+5. **Compare split-slider** (#14) — 1 hour, huge impact
+6. **Text tool** (#8) — 2–3 hours, biggest missing feature
+7. **Project persistence** (#16) — 1 hour, prevents rage
+8. **Keyboard nudge** (#19) — 10 min
+9. **Snap-to guides** (#20) — 1 hour
+10. **Background removal** (#10) — 1 hour including model download
+
+That sequence upgrades the app from "impressive school project" to "I'd pay for this" without touching the backend architecture.
+
+---
+
+## What to skip unless you know you need it
+
+- Multi-user auth (adds enormous surface area for a personal tool)
+- Real-time collaboration (worth it only if you have a use case)
+- Cloud rendering farm (overkill for < 200 MP images)
+
+---
+
+If you want, tell me which three you'd like to implement first and I'll give you the exact full-file patches for those, in the same style I did for layers and crop.

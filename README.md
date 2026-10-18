@@ -1,63 +1,193 @@
+Here is the cleaned-up, GitHub-ready `README.md` for your Photo Studio project. You can copy it directly into your repository.
+
+Photo Studio
+
 # Photo Studio
 
-A web-based advanced photo editor built with FastAPI, Pillow, and vanilla JavaScript. Runs locally in the browser and supports layers, collage, and metadata editing.
-
-![Python](https://img.shields.io/badge/Python-3.11%2B-blue)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688)
-![License](https://img.shields.io/badge/License-MIT-green)
+An advanced, web-based photo editor built with **FastAPI, Pillow, NumPy, and Vanilla JavaScript**. Edit images directly in your browser with powerful editing tools, custom-sized canvases, layers, collage creation, and metadata management.
 
 ---
 
 ## Features
 
-- **Adjustments** — brightness, exposure, contrast, saturation, temperature, sharpness, blur, vignette, grain
-- **Filters** — B&W, sepia, vintage, vivid, cool, warm
-- **Crop** — free + preset aspect ratios, draggable handles, rule-of-thirds guides
-- **Transform** — rotate 90° CW/CCW, flip horizontal/vertical
-- **Canvas resize** — extend vertical → horizontal (or any shape) without cropping, with blur/color/transparent backgrounds
-- **Layers** — create a custom-sized canvas, add multiple images as draggable/resizable layers, reorder, rename, hide, opacity
-- **Collage** — 9 templates (2/3/4/6/9 images + asymmetric), spacing/border/radius/background controls, per-frame zoom & pan
-- **Metadata** — read and edit EXIF, GPS, artist, copyright; strip all metadata
-- **Export** — PNG / JPG / WebP with quality slider, at true canvas dimensions
-- **History** — undo/redo with `Ctrl+Z` / `Ctrl+Y`
-- **Responsive** — desktop, tablet, and mobile layouts
+### Image Editing
+
+* **Adjustments** — Brightness, exposure, contrast, saturation, temperature, sharpness, blur, vignette, and grain.
+
+* **Filters** — Black & white, sepia, vintage, vivid, cool, and warm.
+
+* **Crop** — Free cropping, preset aspect ratios, draggable handles, and rule-of-thirds guides.
+
+* **Transform** — Rotate 90° clockwise or counterclockwise and flip horizontally or vertically.
+
+* **Canvas Resize** — Extend the canvas vertically, horizontally, or to custom dimensions without cropping the original image. Supports blurred, solid-color, and transparent backgrounds.
+
+### Layers & Collage
+
+* **Layers** — Create a custom-sized canvas and add multiple images as draggable and resizable layers. Reorder, rename, hide, and adjust layer opacity.
+
+* **Collage Maker** — Choose from 9 templates supporting 2, 3, 4, 6, or 9 images, including asymmetric layouts. Customize spacing, borders, corner radius, and background colors. Adjust zoom and position independently for each frame.
+
+### Metadata & Export
+
+* **Metadata Editor** — Read and edit EXIF metadata, GPS information, artist details, and copyright information. Remove all metadata when needed.
+
+* **Export** — Save images as PNG, JPG, or WebP with a quality slider and output at the actual canvas dimensions.
+
+* **Undo & Redo** — Reverse or restore editing actions using `Ctrl + Z` and `Ctrl + Y`.
+
+### Responsive Design
+
+* Optimized layouts for desktop, tablet, and mobile devices.
+
+* Browser-based editing interface.
+
+* No frontend build step or bundler required.
 
 ---
 
 ## Tech Stack
 
-| Layer     | Technology                                    |
-|-----------|-----------------------------------------------|
-| Backend   | FastAPI, Pillow, NumPy, Jinja2                |
-| Frontend  | HTML5 canvas, vanilla JS (ES modules), CSS    |
-| Server    | Uvicorn                                       |
-
-No frontend build step. No bundler. Just open the browser.
+| Layer      | Technology                                         |
+| ---------- | -------------------------------------------------- |
+| Backend    | FastAPI, Pillow, NumPy, Jinja2                     |
+| Frontend   | HTML5 Canvas, Vanilla JavaScript (ES Modules), CSS |
+| Web Server | Uvicorn                                            |
+| Language   | Python 3.11+                                       |
 
 ---
 
 ## Getting Started
 
-# 1. Create and activate a virtualenv
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS/Linux:
-source .venv/bin/activate
+Follow these steps to run Photo Studio locally.
 
-# 2. Install dependencies
-pip install -r requirements.txt
+### 1. Clone the Repository
 
-# 3. Run
-python run.py
-# → open http://127.0.0.1:8000
+Replace `<your-repo-url>` with your Git repository URL.
 
-### 1. Clone and enter the project
-
-```bash
+```
 git clone <your-repo-url> photo-editor
 cd photo-editor
->.venv\Scripts\activate
->pip install -r requirements.txt
->.venv\Scripts\deactivate
- 
+```
+
+### 2. Create a Virtual Environment
+
+**Windows:**
+
+```
+py -3.13 -m venv .venv
+```
+
+Alternatively, use your installed Python version:
+
+```
+python -m venv .venv
+```
+
+**macOS/Linux:**
+
+```
+python3 -m venv .venv
+```
+
+### 3. Activate the Virtual Environment
+
+**Windows — Command Prompt:**
+
+```
+.venv\Scripts\activate
+```
+
+**Windows — PowerShell:**
+
+```
+.\.venv\Scripts\Activate.ps1
+```
+
+**macOS/Linux:**
+
+```
+source .venv/bin/activate
+```
+
+### 4. Install Dependencies
+
+Ensure your virtual environment is active, then run:
+
+```
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+### 5. Start the Application
+
+```
+python run.py
+```
+
+### 6. Open Photo Studio
+
+Open the following URL in your browser:
+
+[**http://127.0.0.1:8000**](http://127.0.0.1:8000)
+
+You can now start editing images, creating layers, building collages, and exporting your work.
+
+To stop the server, press `Ctrl + C` in the terminal.
+
+---
+
+## Project Structure
+
+```
+photo-editor/
+├── run.py
+├── requirements.txt
+├── .venv/
+├── templates/
+├── static/
+│   ├── css/
+│   ├── js/
+│   └── images/
+└── README.md
+```
+
+*Note: The directory structure above is illustrative. Adjust it to match your actual project structure.*
+
+---
+
+## Requirements
+
+* Python 3.11 or later.
+
+* Pip package manager.
+
+* A modern web browser.
+
+* Internet access may be required to install dependencies.
+
+---
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
+
+---
+
+## Contributing
+
+Contributions, suggestions, and bug reports are welcome.
+
+1. Fork the repository.
+
+2. Create a feature branch.
+
+3. Commit your changes.
+
+4. Submit a pull request.
+
+---
+
+**Photo Studio — Edit, Design, Create, and Export.**
+
+Before committing: Verify that your actual project uses the listed `templates/` and `static/` directories, that `requirements.txt` includes all required packages, and that a `LICENSE` file exists. The project structure section is illustrative and should be adjusted to match your repository.

@@ -3,8 +3,11 @@ uvicorn[standard]==0.32.0
 python-multipart==0.0.12
 pillow>=12.0.0
 opencv-python-headless==4.10.0.84
-numpy==1.26.4
+numpy>=1.26
 aiofiles==24.1.0
 jinja2==3.1.4
-# optional, uncomment for background removal in Phase 3:
-# rembg==2.0.57
+
+# Background removal (Adjust panel → Remove Background)
+# Requires Python 3.13 or older. Verified with Python 3.13.0 on Windows.
+rembg==2.0.85
+onnxruntime>=1.20.0

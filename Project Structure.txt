@@ -40,3 +40,5 @@ photo-editor/
 (.venv) D:\PY\photo-editor>.venv\Scripts\deactivate
 
 D:\PY\photo-editor>pip install -r requirements.txt
+
+(.venv) D:\PY\photo-editor>python run.py

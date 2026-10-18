@@ -10,10 +10,16 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
   let layers = [];
   let selectedId = null;
   let nextId = 1;
+  let lockAspect = true;
   const sources = new Map();
 
   function getSelected() { return layers.find((l) => l.id === selectedId) || null; }
   function uid() { return `L${nextId++}`; }
+
+  // ------------- aspect lock (Roadmap #15) -------------
+  $("#layer-aspect-lock").addEventListener("change", (e) => {
+    lockAspect = e.target.checked;
+  });
 
   // ------------- create canvas -------------
   $("#new-bg-mode").addEventListener("change", (e) => {
@@ -63,16 +69,20 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     const url = URL.createObjectURL(file);
     const img = await loadImage(url);
     URL.revokeObjectURL(url);
+    addSourceCanvasLayer(imgToCanvas(img), file.name.replace(/\.[^.]+$/, "").slice(0, 24) || "Layer");
+  }
 
+  // Public: accept any canvas as a layer (used by text + sticker tools).
+  function addSourceCanvasLayer(sourceCanvas, name = "Layer") {
     const cw = canvas.width, ch = canvas.height;
-    const r = Math.min(cw / img.naturalWidth, ch / img.naturalHeight, 1);
-    const w = Math.round(img.naturalWidth * r);
-    const h = Math.round(img.naturalHeight * r);
+    const r = Math.min(cw / sourceCanvas.width, ch / sourceCanvas.height, 1);
+    const w = Math.max(8, Math.round(sourceCanvas.width * r));
+    const h = Math.max(8, Math.round(sourceCanvas.height * r));
 
     const layer = {
       id: uid(),
-      name: file.name.replace(/\.[^.]+$/, "").slice(0, 24) || "Layer",
-      sourceCanvas: imgToCanvas(img),
+      name: (name || "Layer").slice(0, 40),
+      sourceCanvas,
       x: Math.round((cw - w) / 2),
       y: Math.round((ch - h) / 2),
       w, h,
@@ -80,11 +90,9 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       opacity: 100,
       visible: true,
     };
-    sources.set(layer.id, img);
     layers.push(layer);
     selectedId = layer.id;
     renderAll();
-    toast(`Added "${layer.name}"`);
   }
 
   function imgToCanvas(img) {
@@ -174,7 +182,15 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
   function renderLayerList() {
     const list = $("#layer-list");
     if (!layers.length) {
-      list.innerHTML = `<p class="hint">No layers yet.</p>`;
+      list.innerHTML = `
+        <div class="empty-state">
+          <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <rect x="8" y="14" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2" opacity=".35"/>
+            <rect x="14" y="20" width="36" height="24" rx="2" stroke="currentColor" stroke-width="2" opacity=".55"/>
+          </svg>
+          <p>No layers yet</p>
+          <p class="hint">Create a canvas, then add images.</p>
+        </div>`;
       return;
     }
     list.innerHTML = "";
@@ -209,7 +225,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
   function renderSelectedControls() {
     const l = getSelected();
     const dis = !l;
-    ["#layer-opacity", "#layer-x", "#layer-y", "#layer-w", "#layer-h"].forEach((s) => $(s).disabled = dis);
+    ["#layer-opacity", "#layer-x", "#layer-y", "#layer-w", "#layer-h", "#layer-aspect-lock"].forEach((s) => $(s).disabled = dis);
     if (!l) return;
     $("#layer-opacity").value = l.opacity;
     $("#layer-x").value = Math.round(l.x);
@@ -241,9 +257,13 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       if (isNaN(v)) return;
       if (key === "w" || key === "h") {
         if (v < 4) return;
-        const ar = l.w / l.h;
-        if (key === "w") { l.w = v; l.h = Math.round(v / ar); }
-        else { l.h = v; l.w = Math.round(v * ar); }
+        if (lockAspect) {
+          const ar = l.w / l.h;
+          if (key === "w") { l.w = v; l.h = Math.round(v / ar); }
+          else { l.h = v; l.w = Math.round(v * ar); }
+        } else {
+          l[key] = v;
+        }
       } else {
         l[key] = v;
       }
@@ -341,14 +361,33 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     return null;
   }
 
+  overlay.addEventListener("pointermove", (e) => {
+    if (!overlay.classList.contains("active")) return;
+    const p = pointInCanvas(e);
+    const sel = getSelected();
+
+    if (sel) {
+      const h = handleAt(sel, p);
+      if (h) {
+        overlay.style.cursor =
+          (h === "nw" || h === "se") ? "nwse-resize" :
+          (h === "ne" || h === "sw") ? "nesw-resize" :
+          (h === "n" || h === "s")   ? "ns-resize"   :
+          (h === "e" || h === "w")   ? "ew-resize"   : "crosshair";
+        return;
+      }
+    }
+
+    const hit = topLayerAt(p);
+    overlay.style.cursor = hit ? "move" : "crosshair";
+  });
+
   overlay.addEventListener("pointerdown", (e) => {
-    // Only active when the Layers panel is the visible one.
     const panel = document.querySelector('.panel-section[data-panel="layers"]');
     if (!panel || panel.classList.contains("hidden")) return;
 
     const p = pointInCanvas(e);
 
-    // 1) If the currently selected layer has a handle under the cursor, grab it.
     let sel = getSelected();
     let handle = sel ? handleAt(sel, p) : null;
 
@@ -360,7 +399,6 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       return;
     }
 
-    // 2) Otherwise, pick the topmost layer under the cursor and start a move.
     const hit = topLayerAt(p);
     if (!hit) {
       selectedId = null;
@@ -398,13 +436,15 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       if (drag.mode.includes("w")) { nw = Math.max(20, o.w - dx); nx = o.x + (o.w - nw); }
       if (drag.mode.includes("n")) { nh = Math.max(20, o.h - dy); ny = o.y + (o.h - nh); }
 
-      if (drag.mode === "nw" || drag.mode === "ne" || drag.mode === "sw" || drag.mode === "se") {
-        if (Math.abs(nw - o.w) > Math.abs(nh - o.h)) {
-          nh = nw / ar;
-          if (drag.mode.includes("n")) ny = o.y + (o.h - nh);
-        } else {
-          nw = nh * ar;
-          if (drag.mode.includes("w")) nx = o.x + (o.w - nw);
+      if (lockAspect) {
+        if (drag.mode === "nw" || drag.mode === "ne" || drag.mode === "sw" || drag.mode === "se") {
+          if (Math.abs(nw - o.w) > Math.abs(nh - o.h)) {
+            nh = nw / ar;
+            if (drag.mode.includes("n")) ny = o.y + (o.h - nh);
+          } else {
+            nw = nh * ar;
+            if (drag.mode.includes("w")) nx = o.x + (o.w - nw);
+          }
         }
       }
 
@@ -456,7 +496,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
-      downloadBlob(blob, `layers-${Date.now()}.${format === "jpg" ? "jpg" : "png"}`);
+      downloadBlob(blob, `outlook-layers-${Date.now()}.${format === "jpg" ? "jpg" : "png"}`);
       toast("Exported layers");
     } catch (e) {
       toast(e.message, true);
@@ -475,5 +515,64 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     return [(n >> 16) & 255, (n >> 8) & 255, n & 255, 255];
   }
 
-  return { renderAll, exportComposite, hasLayers: () => layers.length > 0 };
+  // ------------- persistence (Roadmap #16) -------------
+  function getState() {
+    return {
+      canvas: {
+        width: canvas.width,
+        height: canvas.height,
+        background: { ...canvas.background },
+      },
+      layers: layers.map((l) => ({
+        id: l.id,
+        name: l.name,
+        src: l.sourceCanvas.toDataURL("image/png"),
+        x: l.x, y: l.y, w: l.w, h: l.h,
+        opacity: l.opacity,
+        visible: l.visible,
+      })),
+      selectedId,
+      nextId,
+    };
+  }
+
+  async function setState(snapshot) {
+    if (!snapshot || !snapshot.canvas || !Array.isArray(snapshot.layers)) return false;
+
+    canvas = {
+      width: snapshot.canvas.width,
+      height: snapshot.canvas.height,
+      background: { ...snapshot.canvas.background },
+    };
+
+    const newLayers = [];
+    for (const s of snapshot.layers) {
+      if (!s.src) continue;
+      const img = await loadImage(s.src);
+      newLayers.push({
+        id: s.id,
+        name: s.name || "Layer",
+        sourceCanvas: imgToCanvas(img),
+        x: s.x, y: s.y, w: s.w, h: s.h,
+        rotation: 0,
+        opacity: s.opacity ?? 100,
+        visible: s.visible !== false,
+      });
+    }
+
+    layers = newLayers;
+    selectedId = snapshot.selectedId ?? newLayers[newLayers.length - 1]?.id ?? null;
+    nextId = snapshot.nextId || (layers.length + 1);
+    renderAll();
+    return true;
+  }
+
+  return {
+    renderAll,
+    exportComposite,
+    hasLayers: () => layers.length > 0,
+    addSourceCanvasLayer,
+    getState,
+    setState,
+  };
 }

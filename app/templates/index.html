@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <link rel="shortcut icon" href="https://fea.assettype.com/outlook/outlook-india/assets/favicon.ico" type="image/x-icon">
-  <link rel="apple-touch-icon" href="https://fea.assettype.com/outlook/outlook-india/assets/apple-touch-icon.png">
-  <link rel="icon" type="image/png" href="https://fea.assettype.com/outlook/outlook-india/assets/favicon.ico">
-
   <title>Outlook Studio — Advanced Photo Editor</title>
+
+  <link rel="icon" href="/static/favicon.ico" sizes="any">
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
+
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
@@ -25,16 +25,21 @@
     </div>
 
     <div class="topbar-actions">
+      <button id="btn-save-project" title="Save current project as .outlookstudio file">Save Project</button>
+      <button id="btn-open-project" title="Open a .outlookstudio file">Open Project</button>
+      <input type="file" id="project-input" accept=".outlookstudio,.json,application/json" hidden>
+
+      <button id="btn-copy-style" title="Ctrl+Shift+C — Copy style" disabled>⧉ Copy Style</button>
+      <button id="btn-paste-style" title="Ctrl+Shift+V — Paste style" disabled>⎘ Paste Style</button>
       <button id="btn-undo" title="Ctrl+Z" disabled>↶ Undo</button>
       <button id="btn-redo" title="Ctrl+Y" disabled>↷ Redo</button>
       <button id="btn-reset" title="Reset to original">Reset</button>
-      <button id="btn-compare" title="Hold to compare with original">Compare</button>
+      <button id="btn-compare" title="Drag to compare with original">Compare</button>
       <button id="btn-export" class="primary">Export</button>
     </div>
   </header>
 
   <main class="layout">
-    <!-- LEFT TOOLBAR -->
     <aside class="toolbar" aria-label="Tools">
       <button data-panel="adjust"    class="tool active"><span class="ico">◐</span>Adjust</button>
       <button data-panel="filters"   class="tool"><span class="ico">✦</span>Filters</button>
@@ -42,6 +47,8 @@
       <button data-panel="transform" class="tool"><span class="ico">⟳</span>Transform</button>
       <button data-panel="fit"       class="tool"><span class="ico">⇱</span>Canvas</button>
       <button data-panel="layers"    class="tool"><span class="ico">▤</span>Layers</button>
+      <button data-panel="text"      class="tool"><span class="ico">T</span>Text</button>
+      <button data-panel="stickers"  class="tool"><span class="ico">☺</span>Stickers</button>
       <button data-panel="collage"   class="tool"><span class="ico">▦</span>Collage</button>
       <button data-panel="metadata"  class="tool"><span class="ico">ⓘ</span>Info</button>
       <label class="tool upload-btn" title="Upload image">
@@ -50,33 +57,96 @@
       </label>
     </aside>
 
-    <!-- CANVAS -->
     <section class="canvas-wrap" id="drop-zone">
       <div class="canvas-inner">
         <canvas id="canvas"></canvas>
         <canvas id="overlay"></canvas>
+        <div class="canvas-skeleton hidden" id="canvas-skeleton" aria-hidden="true"></div>
       </div>
       <div class="placeholder" id="placeholder">
-        <div class="ph-icon">🖼</div>
+        <svg class="ph-svg" viewBox="0 0 96 96" fill="none" aria-hidden="true">
+          <rect x="10" y="20" width="76" height="56" rx="6" stroke="currentColor" stroke-width="2" opacity=".4"/>
+          <circle cx="34" cy="40" r="6" stroke="currentColor" stroke-width="2" opacity=".55"/>
+          <path d="M14 68l20-18 14 12 12-10 22 20" stroke="currentColor" stroke-width="2" opacity=".55" stroke-linejoin="round"/>
+        </svg>
         <p class="ph-title">Drop an image to start</p>
         <p class="ph-sub">or click <strong>Upload</strong> in the left toolbar</p>
         <p class="hint">JPG · PNG · WebP · BMP — up to 25 MB</p>
       </div>
     </section>
 
-    <!-- RIGHT PROPERTIES PANEL -->
     <aside class="panel" id="panel">
 
       <!-- ADJUST -->
       <div class="panel-section" data-panel="adjust">
         <h3>Adjustments</h3>
-        <label>Brightness <input type="range" data-adj="brightness" min="-100" max="100" value="0"></label>
-        <label>Exposure   <input type="range" data-adj="exposure"   min="-100" max="100" value="0"></label>
-        <label>Contrast   <input type="range" data-adj="contrast"   min="-100" max="100" value="0"></label>
-        <label>Saturation <input type="range" data-adj="saturation" min="-100" max="100" value="0"></label>
-        <label>Temperature<input type="range" data-adj="temperature"min="-100" max="100" value="0"></label>
-        <label>Sharpness  <input type="range" data-adj="sharpness"  min="-100" max="100" value="0"></label>
-        <label>Blur       <input type="range" data-adj="blur"       min="0"    max="20"  value="0"></label>
+
+        <label class="adj-label">
+          <span class="adj-head"><span>Brightness</span><span class="adj-value" data-for="brightness">0</span></span>
+          <input type="range" data-adj="brightness" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Exposure</span><span class="adj-value" data-for="exposure">0</span></span>
+          <input type="range" data-adj="exposure" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Contrast</span><span class="adj-value" data-for="contrast">0</span></span>
+          <input type="range" data-adj="contrast" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Saturation</span><span class="adj-value" data-for="saturation">0</span></span>
+          <input type="range" data-adj="saturation" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Temperature</span><span class="adj-value" data-for="temperature">0</span></span>
+          <input type="range" data-adj="temperature" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Sharpness</span><span class="adj-value" data-for="sharpness">0</span></span>
+          <input type="range" data-adj="sharpness" min="-100" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Blur</span><span class="adj-value" data-for="blur">0</span></span>
+          <input type="range" data-adj="blur" min="0" max="20" value="0">
+        </label>
+        <p class="hint">Double-click any slider to reset. Type in the chip for exact values.</p>
+
+        <!-- Roadmap #11: Preset save/load -->
+        <h3>My Presets</h3>
+        <div class="preset-list" id="preset-list">
+          <p class="hint" id="preset-empty">No saved presets yet.</p>
+        </div>
+        <div class="row">
+          <button id="btn-save-preset">Save Current</button>
+          <button id="btn-import-preset">Import…</button>
+        </div>
+        <input type="file" id="preset-import" accept="application/json" hidden>
+        <div class="row">
+          <button id="btn-export-presets">Export Presets</button>
+        </div>
+
+        <!-- Roadmap #10: Background removal -->
+        <h3>Background</h3>
+        <div class="bg-card" id="bg-card">
+          <p class="hint" id="bg-status">Checking availability…</p>
+          <label>Model
+            <select id="bg-model">
+              <option value="u2netp" selected>u2netp (fast, 4 MB)</option>
+              <option value="u2net">u2net (better, 176 MB)</option>
+              <option value="isnet-general-use">isnet (best for photos)</option>
+            </select>
+          </label>
+          <label>Replace background
+            <select id="bg-replace">
+              <option value="transparent" selected>Transparent (PNG)</option>
+              <option value="color">Solid color</option>
+            </select>
+          </label>
+          <label id="bg-color-row" class="hidden">Color
+            <input type="color" id="bg-color" value="#ffffff">
+          </label>
+          <button id="btn-remove-bg" class="primary" style="width:100%">Remove Background</button>
+        </div>
       </div>
 
       <!-- FILTERS -->
@@ -92,8 +162,14 @@
           <button data-filter="warm">Warm</button>
         </div>
         <h3>Effects</h3>
-        <label>Vignette <input type="range" data-adj="vignette" min="0" max="100" value="0"></label>
-        <label>Grain    <input type="range" data-adj="grain"    min="0" max="100" value="0"></label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Vignette</span><span class="adj-value" data-for="vignette">0</span></span>
+          <input type="range" data-adj="vignette" min="0" max="100" value="0">
+        </label>
+        <label class="adj-label">
+          <span class="adj-head"><span>Grain</span><span class="adj-value" data-for="grain">0</span></span>
+          <input type="range" data-adj="grain" min="0" max="100" value="0">
+        </label>
       </div>
 
       <!-- CROP -->
@@ -131,12 +207,10 @@
           Make a vertical photo horizontal (or any shape) without cropping it.
           The empty space is filled with your chosen background.
         </p>
-
         <div class="grid-2">
           <label>Width  <input type="number" id="fit-w" min="16" max="8000" step="1"></label>
           <label>Height <input type="number" id="fit-h" min="16" max="8000" step="1"></label>
         </div>
-
         <h3>Aspect Presets</h3>
         <div class="preset-grid">
           <button data-fit="square">1:1</button>
@@ -146,7 +220,6 @@
           <button data-fit="portrait-3-4">3:4</button>
           <button data-fit="swap">Swap W↔H</button>
         </div>
-
         <h3>Background</h3>
         <label>Fill mode
           <select id="fit-mode">
@@ -160,7 +233,6 @@
           Background color
           <input type="color" id="fit-color" value="#ffffff">
         </label>
-
         <label>Anchor
           <select id="fit-anchor">
             <option value="center" selected>Center</option>
@@ -170,7 +242,6 @@
             <option value="right">Right</option>
           </select>
         </label>
-
         <div class="row">
           <button id="btn-apply-fit" class="primary">Apply</button>
           <button id="btn-reset-fit">Reset</button>
@@ -211,7 +282,16 @@
         </label>
 
         <h3>Layers</h3>
-        <div id="layer-list" class="layer-list"><p class="hint">No layers yet.</p></div>
+        <div id="layer-list" class="layer-list">
+          <div class="empty-state">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <rect x="8" y="14" width="48" height="36" rx="4" stroke="currentColor" stroke-width="2" opacity=".35"/>
+              <rect x="14" y="20" width="36" height="24" rx="2" stroke="currentColor" stroke-width="2" opacity=".55"/>
+            </svg>
+            <p>No layers yet</p>
+            <p class="hint">Create a canvas, then add images.</p>
+          </div>
+        </div>
 
         <h3>Selected Layer</h3>
         <label>Opacity <input type="range" id="layer-opacity" min="0" max="100" value="100"></label>
@@ -223,6 +303,13 @@
           <label>W <input type="number" id="layer-w" step="1"></label>
           <label>H <input type="number" id="layer-h" step="1"></label>
         </div>
+
+        <!-- Roadmap #15: Aspect-ratio lock -->
+        <label class="aspect-lock-row">
+          <input type="checkbox" id="layer-aspect-lock" checked>
+          <span>Lock aspect ratio</span>
+        </label>
+
         <div class="row">
           <button id="layer-rotate-l">↺ 90°</button>
           <button id="layer-rotate-r">↻ 90°</button>
@@ -243,6 +330,72 @@
           <button id="layer-rename">Rename</button>
           <button id="layer-delete" class="primary" style="background:var(--danger);border-color:var(--danger)">Delete</button>
         </div>
+      </div>
+
+      <!-- TEXT -->
+      <div class="panel-section hidden" data-panel="text">
+        <h3>Add Text</h3>
+        <p class="hint">Text is added as a layer you can drag, resize and reorder.</p>
+
+        <label>Text
+          <textarea id="text-input" rows="2" placeholder="Type here…"></textarea>
+        </label>
+
+        <div class="grid-2">
+          <label>Font
+            <select id="text-font">
+              <option value="Inter, system-ui, sans-serif">Inter</option>
+              <option value="Georgia, serif">Georgia</option>
+              <option value="'Times New Roman', serif">Times</option>
+              <option value="'Courier New', monospace">Courier</option>
+              <option value="Impact, sans-serif">Impact</option>
+              <option value="'Brush Script MT', cursive">Brush Script</option>
+            </select>
+          </label>
+          <label>Weight
+            <select id="text-weight">
+              <option value="400">Regular</option>
+              <option value="600">Semibold</option>
+              <option value="700" selected>Bold</option>
+              <option value="900">Black</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="grid-2">
+          <label>Size (px) <input type="number" id="text-size" min="8" max="400" value="72"></label>
+          <label>Color <input type="color" id="text-color" value="#111111"></label>
+        </div>
+
+        <label class="adj-label">
+          <span class="adj-head"><span>Letter spacing</span><span class="adj-value" data-for="text-spacing">0</span></span>
+          <input type="range" id="text-spacing" min="-10" max="40" value="0">
+        </label>
+
+        <div class="row">
+          <button id="text-align-left" class="text-align active">Left</button>
+          <button id="text-align-center" class="text-align">Center</button>
+          <button id="text-align-right" class="text-align">Right</button>
+        </div>
+
+        <div class="row">
+          <button id="text-shadow-toggle">Shadow: Off</button>
+          <button id="text-outline-toggle">Outline: Off</button>
+        </div>
+
+        <button id="btn-add-text" class="primary" style="width:100%;margin-top:12px">Add Text Layer</button>
+      </div>
+
+      <!-- STICKERS -->
+      <div class="panel-section hidden" data-panel="stickers">
+        <h3>Emoji</h3>
+        <div class="sticker-grid" id="sticker-emoji"></div>
+
+        <h3>Shapes</h3>
+        <label>Shape color <input type="color" id="sticker-color" value="#4f46e5"></label>
+        <div class="sticker-grid" id="sticker-shapes"></div>
+
+        <p class="hint">Click any sticker to add it as a layer. Drag on the canvas to position it.</p>
       </div>
 
       <!-- COLLAGE -->
@@ -302,7 +455,6 @@
           <button id="collage-swap">Swap Pick</button>
           <button id="collage-clear-sel">Clear Sel</button>
         </div>
-
         <div class="row">
           <button id="collage-apply" class="primary">Render Collage</button>
           <button id="collage-export">Export PNG</button>
@@ -312,7 +464,16 @@
       <!-- METADATA -->
       <div class="panel-section hidden" data-panel="metadata">
         <h3>File Information</h3>
-        <div id="meta-basic" class="meta-list"><p class="hint">No image loaded.</p></div>
+        <div id="meta-basic" class="meta-list">
+          <div class="empty-state">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <circle cx="32" cy="32" r="22" stroke="currentColor" stroke-width="2" opacity=".35"/>
+              <path d="M32 20v14M32 42v.01" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"/>
+            </svg>
+            <p>No image loaded</p>
+            <p class="hint">Upload an image to see its metadata.</p>
+          </div>
+        </div>
 
         <h3>EXIF</h3>
         <div id="meta-exif" class="meta-list"></div>
@@ -334,30 +495,34 @@
     </aside>
   </main>
 
-  <footer class="footer">
-  <div class="footer-left">
-    <span id="status">Ready</span>
-  </div>
+  <footer class="footer" role="contentinfo">
+    <div class="footer-row">
+      <div class="footer-left">
+        <span id="status" aria-live="polite">Ready</span>
+      </div>
 
-  <div class="footer-center" id="dim-readout">—</div>
+      <div class="footer-center" id="dim-readout">—</div>
 
-  <div class="footer-right">
-    <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> Undo ·
-    <span class="kbd">Ctrl</span>+<span class="kbd">Y</span> Redo ·
-    <span class="kbd">Ctrl</span>+<span class="kbd">S</span> Export ·
-    <span class="kbd">Ctrl</span>+<span class="kbd">O</span> Open ·
-    <span class="kbd">Ctrl</span>+<span class="kbd">L</span> Layers ·
-    <span class="kbd">Ctrl</span>+<span class="kbd">K</span> Collage
-  </div>
+      <div class="footer-right">
+        <span class="kbd">Ctrl</span>+<span class="kbd">Z</span> Undo ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">Y</span> Redo ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">S</span> Export ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">O</span> Open ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">L</span> Layers ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">K</span> Collage ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">C</span> Copy ·
+        <span class="kbd">Ctrl</span>+<span class="kbd">Shift</span>+<span class="kbd">V</span> Paste
+      </div>
+    </div>
 
-  <div class="footer-credit">
-    © 2026 Image Toolkit. All rights reserved.
-    <span class="sep">·</span>
-    <a href="https://github.com/nareshsinha" target="_blank" rel="noopener" class="credit-link">@nareshsinha</a>
-    <span class="sep">/</span>
-    <span class="version">v1.2.0</span>
-  </div>
-</footer>
+    <div class="footer-credit">
+      © {{ year }} Image Toolkit. All rights reserved.
+      <span class="sep">·</span>
+      <a href="https://github.com/nareshsinhaoi" target="_blank" rel="noopener" class="credit-link">@nareshsinhaoi</a>
+      <span class="sep">/</span>
+      <span class="version">v1.2.0</span>
+    </div>
+  </footer>
 
   <div class="modal hidden" id="export-modal">
     <div class="modal-content">
@@ -378,7 +543,7 @@
     </div>
   </div>
 
-  <div id="toast" class="toast hidden"></div>
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
   <div id="loader" class="loader hidden"><div class="spinner"></div></div>
 
   <script type="module" src="/static/js/main.js"></script>
