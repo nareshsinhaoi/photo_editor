@@ -7,6 +7,11 @@ Photo Studio
 An advanced, web-based photo editor built with **FastAPI, Pillow, NumPy, and Vanilla JavaScript**. Edit images directly in your browser with powerful editing tools, custom-sized canvases, layers, collage creation, and metadata management.
 
 ---
+## Application Preview
+
+![Photo Editor](/static/zmhqivc357m9_01a1988e-dbcb-72e0-8b40-6a0ba698899b.jpg)
+
+---
 
 ## Features
 
