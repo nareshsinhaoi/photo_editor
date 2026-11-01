@@ -1,0 +1,20 @@
+
+[project]
+name = "photo-editor"
+version = "0.1.0"
+description = "A FastAPI photo editor running on Wasmer"
+readme = "README.md"
+requires-python = ">=3.13"
+
+dependencies = [
+    "fastapi==0.115.0",
+    "uvicorn[standard]==0.32.0",
+    "python-multipart==0.0.12",
+    "pillow==12.3.0",
+    "numpy>=1.26",
+    "aiofiles==24.1.0",
+    "jinja2==3.1.4"
+]
+
+[tool.uv]
+native-tls = true

@@ -31,6 +31,7 @@ class LayersExportRequest(BaseModel):
     layers: list[Layer]
     format: str = "png"                   # png | jpg | webp
     quality: int = 92
+    id: str | None = None
 
 class ExportRequest(BaseModel):
     id: str
@@ -43,6 +44,17 @@ class ExportRequest(BaseModel):
     resize: list[int] | None = None     # [w, h]
     # OR send the fully composited canvas as base64 (for text/stickers/draw):
     composite: str | None = None
+
+def _source_exif(image_id: str) -> bytes | None:
+    try:
+        path = uploaded_image_path(image_id)
+        if not path.exists():
+            return None
+        with Image.open(path) as source:
+            exif = source.getexif()
+            return exif.tobytes() if exif else None
+    except (OSError, ValueError, TypeError):
+        return None
 
 @router.post("/export")
 def export(req: ExportRequest):
@@ -79,18 +91,28 @@ def export(req: ExportRequest):
     if req.flip:   img = flip(img, req.flip)
     if req.resize: img = resize(img, *req.resize)
 
+    source_exif = _source_exif(req.id)
     fmt = req.format.lower()
     buf = BytesIO()
     if fmt in ("jpg", "jpeg"):
-        img.convert("RGB").save(buf, "JPEG", quality=req.quality, optimize=True)
+        kwargs = {"quality": req.quality, "optimize": True}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.convert("RGB").save(buf, "JPEG", **kwargs)
         media = "image/jpeg"
         ext = "jpg"
     elif fmt == "webp":
-        img.save(buf, "WEBP", quality=req.quality, method=6)
+        kwargs = {"quality": req.quality, "method": 6}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.save(buf, "WEBP", **kwargs)
         media = "image/webp"
         ext = "webp"
     else:
-        img.save(buf, "PNG", optimize=True)
+        kwargs = {"optimize": True}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.save(buf, "PNG", **kwargs)
         media = "image/png"
         ext = "png"
 
@@ -130,17 +152,27 @@ def layers_export(req: LayersExportRequest):
         raise HTTPException(400, "Layer composition failed") from e
 
     fmt = req.format.lower()
+    source_exif = _source_exif(req.id) if req.id else None
     buf = BytesIO()
     if fmt in ("jpg", "jpeg"):
-        img.convert("RGB").save(buf, "JPEG", quality=req.quality, optimize=True)
+        kwargs = {"quality": req.quality, "optimize": True}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.convert("RGB").save(buf, "JPEG", **kwargs)
         media = "image/jpeg"
         ext = "jpg"
     elif fmt == "webp":
-        img.save(buf, "WEBP", quality=req.quality, method=6)
+        kwargs = {"quality": req.quality, "method": 6}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.save(buf, "WEBP", **kwargs)
         media = "image/webp"
         ext = "webp"
     else:
-        img.save(buf, "PNG", optimize=True)
+        kwargs = {"optimize": True}
+        if source_exif:
+            kwargs["exif"] = source_exif
+        img.save(buf, "PNG", **kwargs)
         media = "image/png"
         ext = "png"
 
