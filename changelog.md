@@ -1,12 +1,32 @@
 # Changelog
 
+## v1.5.0 - 2026-11-02
+
+### Added
+
+- Added a separate uploaded-files administration page at `/admin/uploads` for viewing and deleting stored user uploads.
+- Added individual file deletion controls with confirmation prompts.
+- Added a delete-all action for removing every valid uploaded PNG file.
+- Added upload preview, file ID, modification date, and file-size details to the administration page.
+- Added production SEO metadata, Open Graph and Twitter sharing tags, canonical and robot directives, and WebApplication structured data to the main page.
+
+### Changed
+
+- Updated the application version displayed in the footer from v1.4.0 to v1.5.0.
+
 ## v1.4.0 - 2026-11-02
 
 ### Fixed
 
-- Fixed exported PNG, JPEG, and WebP images losing metadata saved in the Metadata panel.
+- Fixed exported PNG, JPEG, and WebP images losing EXIF metadata saved in the Metadata panel.
+- Fixed the metadata save path so Artist, Copyright, Software, and Image Description values are stored in the uploaded PNG file.
+- Fixed normal image exports so the source image's EXIF data is embedded in the exported file.
 - Fixed layer exports so they preserve metadata from the source image.
-- Fixed saved EXIF values so they are written explicitly to the uploaded PNG and can be read after export.
+- Fixed layer composites so the source image ID is passed to the export API when metadata is attached.
+
+### Changed
+
+- Updated the application version displayed in the footer from v1.3.0 to v1.4.0.
 
 ## v1.3.0 - 2026-11-01
 

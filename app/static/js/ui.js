@@ -104,7 +104,7 @@ export function refreshSliderReadouts(state) {
 }
 
 // ---------- Dynamic tab title (roadmap #7) ----------
-const BASE_TITLE = "Outlook Studio — Advanced Photo Editor";
+const BASE_TITLE = "Outlook Studio — Free Online Photo Editor";
 
 export function setDocumentTitle(parts = []) {
   const suffix = parts.filter(Boolean).join(" · ");

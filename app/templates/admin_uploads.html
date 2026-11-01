@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow, noarchive">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/static/css/style.css">
+  <style>
+    body { margin: 0; background: var(--bg); color: var(--text); font-family: Arial, sans-serif; }
+    .admin-shell { max-width: 1100px; margin: 0 auto; padding: 32px 20px 48px; }
+    .admin-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .admin-header h1 { margin: 0; font-size: 24px; }
+    .admin-actions { display: flex; gap: 8px; }
+    .admin-actions button, .delete-button { border: 0; border-radius: var(--radius); padding: 9px 12px; cursor: pointer; }
+    .admin-actions button { background: var(--surface-3); }
+    .admin-actions button.primary { background: var(--accent); color: #fff; }
+    .admin-actions button.danger, .delete-button { background: var(--danger); color: #fff; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .upload-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow-sm); }
+    .upload-table th, .upload-table td { padding: 12px; text-align: left; border-bottom: 1px solid var(--border); }
+    .upload-table th:last-child, .upload-table td:last-child { text-align: right; }
+    .upload-table img { width: 52px; height: 52px; object-fit: cover; border-radius: 6px; background: var(--surface-2); }
+    .upload-table .id { font-family: monospace; color: var(--text-2); font-size: 12px; }
+    .empty { padding: 40px; text-align: center; background: var(--surface); border-radius: var(--radius-lg); color: var(--text-2); }
+    #admin-status { min-height: 20px; margin-top: 14px; color: var(--text-2); }
+    @media (max-width: 700px) {
+      .admin-header { align-items: flex-start; flex-direction: column; }
+      .upload-table th:nth-child(3), .upload-table td:nth-child(3) { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="admin-shell">
+    <div class="admin-header">
+      <h1>Uploaded Files</h1>
+      <div class="admin-actions">
+        <button id="refresh-button" class="primary">Refresh</button>
+        <button id="delete-all-button" class="danger" {% if not files %}disabled{% endif %}>Delete All</button>
+      </div>
+    </div>
+    {% if files %}
+    <table class="upload-table" id="upload-table">
+      <thead>
+        <tr>
+          <th>Preview</th>
+          <th>File ID</th>
+          <th>Uploaded</th>
+          <th>Size</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for file in files %}
+        <tr data-image-id="{{ file.id }}">
+          <td><img src="/static/uploads/{{ file.name }}" alt=""></td>
+          <td><span class="id">{{ file.id }}</span></td>
+          <td>{{ file.modified[:19].replace('T', ' ') }} UTC</td>
+          <td>{{ (file.size / 1024) | round(1) }} KB</td>
+          <td><button class="delete-button" data-delete-id="{{ file.id }}">Delete</button></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty" id="empty-message">No uploaded files.</div>
+    {% endif %}
+    <div id="admin-status"></div>
+  </main>
+  <script>
+    const statusEl = document.getElementById("admin-status");
+    const deleteAllButton = document.getElementById("delete-all-button");
+
+    function setStatus(message) {
+      statusEl.textContent = message;
+    }
+
+    document.getElementById("refresh-button").addEventListener("click", () => location.reload());
+
+    document.querySelectorAll("[data-delete-id]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        const id = button.dataset.deleteId;
+        if (!confirm("Delete this uploaded file?")) return;
+        button.disabled = true;
+        try {
+          const response = await fetch(`/admin/uploads/${id}`, { method: "DELETE" });
+          if (!response.ok) throw new Error("Could not delete file");
+          button.closest("tr").remove();
+          setStatus("Uploaded file deleted.");
+          if (!document.querySelector("#upload-table tbody tr")) location.reload();
+        } catch (error) {
+          button.disabled = false;
+          setStatus(error.message);
+        }
+      });
+    });
+
+    deleteAllButton?.addEventListener("click", async () => {
+      if (!confirm("Delete every uploaded file? This cannot be undone.")) return;
+      deleteAllButton.disabled = true;
+      try {
+        const response = await fetch("/admin/uploads", { method: "DELETE" });
+        if (!response.ok) throw new Error("Could not delete uploaded files");
+        const result = await response.json();
+        location.reload();
+      } catch (error) {
+        deleteAllButton.disabled = false;
+        setStatus(error.message);
+      }
+    });
+  </script>
+</body>
+</html>
