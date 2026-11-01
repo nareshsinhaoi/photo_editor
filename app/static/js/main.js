@@ -419,7 +419,7 @@ $("#btn-do-export").addEventListener("click", async () => {
     renderedBase.height = canvas.height;
     renderedBase.getContext("2d").drawImage(canvas, 0, 0);
     layersPanel.updateImageBase(renderedBase);
-    return layersPanel.exportComposite(format);
+    return layersPanel.exportComposite(format, uploadedId);
   }
 
   const mime = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";

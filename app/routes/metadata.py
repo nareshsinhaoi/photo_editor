@@ -31,7 +31,11 @@ def update_metadata(req: MetadataUpdate):
     with Image.open(path) as img:
         img.load()
         updated = write_metadata(img, req.updates, strip=req.strip)
-        updated.save(path, "PNG")
+        save_kwargs = {}
+        exif = updated.getexif()
+        if not req.strip and exif:
+            save_kwargs["exif"] = exif.tobytes()
+        updated.save(path, "PNG", **save_kwargs)
 
     with Image.open(path) as img:
         return read_metadata(img)

@@ -599,7 +599,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
   overlay.addEventListener("pointerleave", endDrag);
 
   // ------------- export -------------
-  async function exportComposite(format = "png") {
+  async function exportComposite(format = "png", imageId = null) {
     if (!layers.length) return toast("No layers to export", true);
 
     const payloadLayers = layers.map((l) => ({
@@ -619,6 +619,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          id: imageId,
           width: canvas.width, height: canvas.height,
           background: bg,
           layers: payloadLayers,

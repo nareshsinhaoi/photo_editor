@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.4.0 - 2026-11-02
+
+### Fixed
+
+- Fixed exported PNG, JPEG, and WebP images losing metadata saved in the Metadata panel.
+- Fixed layer exports so they preserve metadata from the source image.
+- Fixed saved EXIF values so they are written explicitly to the uploaded PNG and can be read after export.
+
 ## v1.3.0 - 2026-11-01
 
 ### Added
