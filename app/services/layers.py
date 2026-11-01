@@ -1,12 +1,19 @@
 """Server-side layer composition. Mirrors the JS layout in /static/js/layers.js."""
 from PIL import Image
 import base64
+import binascii
 from io import BytesIO
 
 
 def _dataurl_to_image(dataurl: str) -> Image.Image:
+    if not isinstance(dataurl, str) or "," not in dataurl:
+        raise ValueError("Invalid image data URL")
     b64 = dataurl.split(",", 1)[-1]
-    return Image.open(BytesIO(base64.b64decode(b64))).convert("RGBA")
+    try:
+        raw = base64.b64decode(b64, validate=True)
+        return Image.open(BytesIO(raw)).convert("RGBA")
+    except (binascii.Error, ValueError, OSError) as exc:
+        raise ValueError("Invalid image data") from exc
 
 
 def compose_layers(

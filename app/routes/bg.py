@@ -1,7 +1,5 @@
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
-from io import BytesIO
-
 from app.config import MAX_UPLOAD_BYTES, ALLOWED_MIME
 from app.services.bg import is_available, remove_background, pillow_from_bytes, pillow_to_png_bytes
 

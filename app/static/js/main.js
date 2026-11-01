@@ -11,7 +11,7 @@ import {
   bindSliderReadouts, refreshSliderReadouts,
   setDocumentTitle,
 } from "./ui.js";
-import { EMOJIS, SHAPES, emojiToCanvas, shapeToCanvas } from "./stickers.js";
+import { EMOJIS, SHAPES, GRAPHICS, emojiToCanvas, shapeToCanvas, graphicToCanvas } from "./stickers.js?v=20261101";
 import { createTextCanvas } from "./text.js";
 import { isBgAvailable, removeBackground } from "./bg.js";
 import {
@@ -115,6 +115,8 @@ document.querySelectorAll(".tool[data-panel]").forEach((btn) => {
       overlay.classList.add("active");
       overlay.style.pointerEvents = "auto";
       layersPanel.renderAll();
+    } else if (p === "text") {
+      syncTextPanelFromSelection();
     } else if (p === "crop") {
       overlay.classList.remove("active");
     } else {
@@ -309,6 +311,11 @@ async function handleFile(file) {
     const info = await api.upload(file);
     uploadedId = info.id;
     await renderer.loadFromUrl(info.url);
+    const uploadedCanvas = document.createElement("canvas");
+    uploadedCanvas.width = renderer.baseImage.naturalWidth;
+    uploadedCanvas.height = renderer.baseImage.naturalHeight;
+    uploadedCanvas.getContext("2d").drawImage(renderer.baseImage, 0, 0);
+    layersPanel.setImageBase(uploadedCanvas, file.name.replace(/\.[^.]+$/, "").slice(0, 24) || "Image");
     $("#placeholder").classList.add("hidden");
     currentState = blankState();
     resetSliders();
@@ -343,6 +350,13 @@ $("#btn-redo").addEventListener("click", () => history.redo());
 $("#btn-reset").addEventListener("click", async () => {
   if (!uploadedId) return;
   await renderer.loadFromUrl(`/static/uploads/${uploadedId}.png`);
+  if (layersPanel.hasLayers()) {
+    const resetCanvas = document.createElement("canvas");
+    resetCanvas.width = canvas.width;
+    resetCanvas.height = canvas.height;
+    resetCanvas.getContext("2d").drawImage(canvas, 0, 0);
+    layersPanel.updateImageBase(resetCanvas);
+  }
   currentState = blankState();
   resetSliders();
   history.push(currentState);
@@ -398,10 +412,14 @@ $("#btn-do-export").addEventListener("click", async () => {
   const format = $("#export-format").value;
   const quality = parseInt($("#export-quality").value, 10);
 
-  const layersPanelVisible = !document.querySelector('.panel-section[data-panel="layers"]').classList.contains("hidden");
-  if (layersPanelVisible && layersPanel.hasLayers()) {
+  if (layersPanel.hasLayers()) {
     modal.classList.add("hidden");
-    return layersPanel.exportComposite(format === "jpg" ? "jpg" : "png");
+    const renderedBase = document.createElement("canvas");
+    renderedBase.width = canvas.width;
+    renderedBase.height = canvas.height;
+    renderedBase.getContext("2d").drawImage(canvas, 0, 0);
+    layersPanel.updateImageBase(renderedBase);
+    return layersPanel.exportComposite(format);
   }
 
   const mime = format === "jpg" ? "image/jpeg" : format === "webp" ? "image/webp" : "image/png";
@@ -438,41 +456,273 @@ textSpacingInput.addEventListener("dblclick", () => {
   textSpacingReadout.textContent = "0";
 });
 
+const textBackgroundPaddingInput = $("#text-background-padding");
+const textBackgroundPaddingReadout = document.querySelector('.adj-value[data-for="text-background-padding"]');
+textBackgroundPaddingInput.addEventListener("input", () => {
+  textBackgroundPaddingReadout.textContent = textBackgroundPaddingInput.value;
+});
+textBackgroundPaddingInput.addEventListener("dblclick", () => {
+  textBackgroundPaddingInput.value = 18;
+  textBackgroundPaddingReadout.textContent = "18";
+});
+
 document.querySelectorAll(".text-align").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".text-align").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
     textAlign = btn.id.replace("text-align-", "");
+    updateSelectedTextLive();
   });
 });
 
 $("#text-shadow-toggle").addEventListener("click", (e) => {
   textShadow = !textShadow;
   e.target.textContent = `Shadow: ${textShadow ? "On" : "Off"}`;
+  updateSelectedTextLive();
 });
 $("#text-outline-toggle").addEventListener("click", (e) => {
   textOutline = !textOutline;
   e.target.textContent = `Outline: ${textOutline ? "On" : "Off"}`;
+  updateSelectedTextLive();
+});
+
+function getTextOptions() {
+  return {
+    type: "text",
+    text: $("#text-input").value.trim(),
+    font: $("#text-font").value,
+    weight: $("#text-weight").value,
+    size: parseInt($("#text-size").value, 10) || 72,
+    color: $("#text-color").value,
+    backgroundColor: $("#text-background-mode").value === "color"
+      ? $("#text-background-color").value
+      : "",
+    backgroundPadding: parseInt(textBackgroundPaddingInput.value, 10) || 0,
+    align: textAlign,
+    letterSpacing: parseInt(textSpacingInput.value, 10) || 0,
+    shadow: textShadow,
+    outline: textOutline,
+  };
+}
+
+function applyTextOptions(options) {
+  $("#text-input").value = options.text || "";
+  $("#text-font").value = options.font || "Inter, system-ui, sans-serif";
+  $("#text-weight").value = options.weight || "700";
+  $("#text-size").value = options.size || 72;
+  $("#text-color").value = options.color || "#111111";
+  $("#text-background-mode").value = options.backgroundColor ? "color" : "none";
+  $("#text-background-color").value = options.backgroundColor || "#ffffff";
+  textBackgroundPaddingInput.value = options.backgroundPadding ?? 18;
+  textBackgroundPaddingReadout.textContent = textBackgroundPaddingInput.value;
+  textSpacingInput.value = options.letterSpacing ?? 0;
+  textSpacingReadout.textContent = textSpacingInput.value;
+  textAlign = options.align || "left";
+  document.querySelectorAll(".text-align").forEach((b) =>
+    b.classList.toggle("active", b.id === `text-align-${textAlign}`)
+  );
+  textShadow = !!options.shadow;
+  textOutline = !!options.outline;
+  $("#text-shadow-toggle").textContent = `Shadow: ${textShadow ? "On" : "Off"}`;
+  $("#text-outline-toggle").textContent = `Outline: ${textOutline ? "On" : "Off"}`;
+  $("#btn-add-text").textContent = "Update Text Layer";
+}
+
+function syncTextPanelFromSelection() {
+  const selected = layersPanel.getSelectedLayer();
+  if (selected?.metadata?.type === "text") {
+    applyTextOptions(selected.metadata);
+    $("#btn-edit-selected-text").classList.remove("hidden");
+  } else {
+    $("#btn-add-text").textContent = "Add Text Layer";
+    $("#btn-edit-selected-text").classList.add("hidden");
+  }
+}
+
+document.querySelector('.tool[data-panel="text"]').addEventListener("click", () => {
+  setTimeout(syncTextPanelFromSelection, 0);
+});
+window.addEventListener("text-layer-selected", (e) => applyTextOptions(e.detail));
+
+function updateSelectedTextLive() {
+  const selected = layersPanel.getSelectedLayer();
+  if (selected?.metadata?.type !== "text") return false;
+  const opts = getTextOptions();
+  if (!opts.text) return false;
+  const sourceCanvas = createTextCanvas(opts);
+  return layersPanel.updateSelectedTextLayer(sourceCanvas, opts);
+}
+
+[
+  "#text-input", "#text-font", "#text-weight", "#text-size", "#text-color",
+  "#text-background-mode", "#text-background-color", "#text-background-padding",
+  "#text-spacing",
+].forEach((selector) => {
+  $(selector).addEventListener("input", updateSelectedTextLive);
+  $(selector).addEventListener("change", updateSelectedTextLive);
+});
+
+const textEditModal = $("#text-edit-modal");
+let textEditOriginal = null;
+let editingTextLayerId = null;
+let modalTextAlign = "left";
+let modalTextShadow = false;
+let modalTextOutline = false;
+
+function getModalTextOptions() {
+  return {
+    type: "text",
+    text: $("#modal-text-input").value.trim(),
+    font: $("#modal-text-font").value,
+    weight: $("#modal-text-weight").value,
+    size: parseInt($("#modal-text-size").value, 10) || 72,
+    color: $("#modal-text-color").value,
+    backgroundColor: $("#modal-text-background-mode").value === "color"
+      ? $("#modal-text-background-color").value
+      : "",
+    backgroundPadding: parseInt($("#modal-text-background-padding").value, 10) || 0,
+    align: modalTextAlign,
+    letterSpacing: parseInt($("#modal-text-spacing").value, 10) || 0,
+    shadow: modalTextShadow,
+    outline: modalTextOutline,
+  };
+}
+
+function applyModalTextOptions(options) {
+  $("#modal-text-input").value = options.text || "";
+  $("#modal-text-font").value = options.font || "Inter, system-ui, sans-serif";
+  $("#modal-text-weight").value = options.weight || "700";
+  $("#modal-text-size").value = options.size || 72;
+  $("#modal-text-color").value = options.color || "#111111";
+  $("#modal-text-background-mode").value = options.backgroundColor ? "color" : "none";
+  $("#modal-text-background-color").value = options.backgroundColor || "#ffffff";
+  $("#modal-text-background-padding").value = options.backgroundPadding ?? 18;
+  $("#modal-text-spacing").value = options.letterSpacing ?? 0;
+  modalTextAlign = options.align || "left";
+  modalTextShadow = !!options.shadow;
+  modalTextOutline = !!options.outline;
+  document.querySelectorAll(".modal-text-align").forEach((button) => {
+    button.classList.toggle("active", button.dataset.align === modalTextAlign);
+  });
+  $("#modal-text-shadow-toggle").textContent = `Shadow: ${modalTextShadow ? "On" : "Off"}`;
+  $("#modal-text-outline-toggle").textContent = `Outline: ${modalTextOutline ? "On" : "Off"}`;
+}
+
+function openTextEditModal(options) {
+  const requestedId = options?.id;
+  if (requestedId) layersPanel.selectLayer(requestedId);
+  const selected = requestedId
+    ? layersPanel.getLayerById(requestedId)
+    : layersPanel.getSelectedLayer();
+  const source = selected?.metadata?.type === "text" ? selected.metadata : options;
+  if (source?.type !== "text") return;
+  textEditOriginal = { ...source };
+  editingTextLayerId = selected?.id || null;
+  applyModalTextOptions(textEditOriginal);
+  textEditModal.classList.remove("hidden");
+  $("#modal-text-input").focus();
+}
+
+function updateTextFromModal() {
+  const options = getModalTextOptions();
+  if (!options.text) return;
+  const sourceCanvas = createTextCanvas(options);
+  if (editingTextLayerId) {
+    layersPanel.updateTextLayer(editingTextLayerId, sourceCanvas, options);
+  } else {
+    layersPanel.updateSelectedTextLayer(sourceCanvas, options);
+  }
+}
+
+document.querySelectorAll(".modal-text-align").forEach((button) => {
+  button.addEventListener("click", () => {
+    modalTextAlign = button.dataset.align;
+    document.querySelectorAll(".modal-text-align").forEach((item) => {
+      item.classList.toggle("active", item === button);
+    });
+    updateTextFromModal();
+  });
+});
+
+$("#modal-text-shadow-toggle").addEventListener("click", () => {
+  modalTextShadow = !modalTextShadow;
+  $("#modal-text-shadow-toggle").textContent = `Shadow: ${modalTextShadow ? "On" : "Off"}`;
+  updateTextFromModal();
+});
+$("#modal-text-outline-toggle").addEventListener("click", () => {
+  modalTextOutline = !modalTextOutline;
+  $("#modal-text-outline-toggle").textContent = `Outline: ${modalTextOutline ? "On" : "Off"}`;
+  updateTextFromModal();
+});
+
+[
+  "#modal-text-input", "#modal-text-font", "#modal-text-weight", "#modal-text-size",
+  "#modal-text-color", "#modal-text-background-mode", "#modal-text-background-color",
+  "#modal-text-background-padding", "#modal-text-spacing",
+].forEach((selector) => {
+  $(selector).addEventListener("input", updateTextFromModal);
+  $(selector).addEventListener("change", updateTextFromModal);
+});
+
+window.addEventListener("text-layer-edit", (event) => {
+  openTextEditModal(event.detail);
+});
+
+$("#btn-cancel-text-edit").addEventListener("click", () => {
+  if (textEditOriginal) {
+    const sourceCanvas = createTextCanvas(textEditOriginal);
+    if (editingTextLayerId) {
+      layersPanel.updateTextLayer(editingTextLayerId, sourceCanvas, textEditOriginal);
+    } else {
+      layersPanel.updateSelectedTextLayer(sourceCanvas, textEditOriginal);
+    }
+  }
+  textEditModal.classList.add("hidden");
+  editingTextLayerId = null;
+});
+$("#btn-save-text-edit").addEventListener("click", () => {
+  updateTextFromModal();
+  textEditModal.classList.add("hidden");
+  textEditOriginal = null;
+  editingTextLayerId = null;
+  scheduleSave(buildProjectSnapshot());
+  toast("Text layer updated");
+});
+textEditModal.addEventListener("click", (event) => {
+  if (event.target === textEditModal) {
+    $("#btn-cancel-text-edit").click();
+  }
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && !textEditModal.classList.contains("hidden")) {
+    $("#btn-cancel-text-edit").click();
+  }
+});
+
+$("#btn-edit-selected-text").addEventListener("click", () => {
+  const selected = layersPanel.getSelectedLayer();
+  if (selected?.metadata?.type === "text") {
+    openTextEditModal({ id: selected.id, ...selected.metadata });
+  } else {
+    toast("Select a text layer first", true);
+  }
 });
 
 $("#btn-add-text").addEventListener("click", () => {
   const text = $("#text-input").value.trim();
   if (!text) return toast("Type something first", true);
+  layersPanel.ensureImageBase(canvas, "Image");
+  const opts = getTextOptions();
+  const sourceCanvas = createTextCanvas(opts);
 
-  const sourceCanvas = createTextCanvas({
-    text,
-    font: $("#text-font").value,
-    weight: $("#text-weight").value,
-    size: parseInt($("#text-size").value, 10) || 72,
-    color: $("#text-color").value,
-    align: textAlign,
-    letterSpacing: parseInt(textSpacingInput.value, 10) || 0,
-    shadow: textShadow,
-    outline: textOutline,
-  });
-
-  layersPanel.addSourceCanvasLayer(sourceCanvas, text.slice(0, 24));
-  toast("Text layer added");
+  const selected = layersPanel.getSelectedLayer();
+  if (selected?.metadata?.type === "text") {
+    layersPanel.updateSelectedTextLayer(sourceCanvas, opts);
+    toast("Text layer updated");
+  } else {
+    layersPanel.addSourceCanvasLayer(sourceCanvas, text.slice(0, 24), opts);
+    toast("Text layer added");
+  }
   document.querySelector('.tool[data-panel="layers"]').click();
 });
 
@@ -480,6 +730,27 @@ $("#btn-add-text").addEventListener("click", () => {
 function buildStickerGrid() {
   const emojiGrid = $("#sticker-emoji");
   const shapeGrid = $("#sticker-shapes");
+
+  GRAPHICS.forEach((graphic) => {
+    const b = document.createElement("button");
+    b.type = "button";
+    b.classList.add("graphic-btn");
+    b.title = graphic.label;
+    b.setAttribute("aria-label", `Add ${graphic.label}`);
+
+    const preview = document.createElement("canvas");
+    preview.width = 48;
+    preview.height = 48;
+    preview.getContext("2d").drawImage(graphicToCanvas(graphic.id, 48), 0, 0);
+    b.appendChild(preview);
+
+    b.addEventListener("click", () => {
+      layersPanel.addSourceCanvasLayer(graphicToCanvas(graphic.id, 512), graphic.label, { type: "element" });
+      toast(`${graphic.label} added`);
+      document.querySelector('.tool[data-panel="layers"]').click();
+    });
+    emojiGrid.appendChild(b);
+  });
 
   EMOJIS.forEach((emoji) => {
     const b = document.createElement("button");
@@ -533,6 +804,81 @@ function buildStickerGrid() {
   });
 }
 buildStickerGrid();
+
+// ---------- Elements ----------
+const uploadedElements = [];
+
+function canvasFromImage(image) {
+  const c = document.createElement("canvas");
+  c.width = image.naturalWidth || image.width;
+  c.height = image.naturalHeight || image.height;
+  c.getContext("2d").drawImage(image, 0, 0);
+  return c;
+}
+
+$("#element-file").addEventListener("change", async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+
+  let added = 0;
+  for (const file of files) {
+    if (!file.type.startsWith("image/")) {
+      toast(`Skipped non-image: ${file.name}`, true);
+      continue;
+    }
+    if (file.size > 25 * 1024 * 1024) {
+      toast(`Skipped file larger than 25 MB: ${file.name}`, true);
+      continue;
+    }
+
+    const url = URL.createObjectURL(file);
+    try {
+      const image = await new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = url;
+      });
+      const sourceCanvas = canvasFromImage(image);
+      const name = file.name.replace(/\.[^.]+$/, "").slice(0, 24) || "Attached image";
+      uploadedElements.push({ sourceCanvas, name, url });
+      added++;
+
+      const b = document.createElement("button");
+      b.type = "button";
+      b.title = `Add ${name}`;
+      b.setAttribute("aria-label", `Add attached image ${name}`);
+      const thumb = document.createElement("img");
+      thumb.src = url;
+      thumb.alt = "";
+      b.appendChild(thumb);
+      b.addEventListener("click", () => {
+        layersPanel.addSourceCanvasLayer(sourceCanvas, name, { type: "element" });
+        toast(`${name} added as an element`);
+        document.querySelector('.tool[data-panel="layers"]').click();
+      });
+      $("#element-uploads").appendChild(b);
+    } catch {
+      URL.revokeObjectURL(url);
+      toast(`Could not load: ${file.name}`, true);
+    }
+  }
+
+  e.target.value = "";
+  if (added) toast(`${added} element${added === 1 ? "" : "s"} uploaded`);
+});
+
+document.querySelectorAll("[data-element-category]").forEach((button) => {
+  button.addEventListener("click", () => {
+    document.querySelectorAll("[data-element-category]").forEach((b) => b.classList.remove("active"));
+    button.classList.add("active");
+    const category = button.dataset.elementCategory;
+
+    $("#element-shapes-section").classList.toggle("hidden", category === "graphics" || category === "uploads");
+    $("#element-graphics-section").classList.toggle("hidden", category === "shapes" || category === "uploads");
+    $("#element-uploads-section").classList.toggle("hidden", category === "shapes" || category === "graphics");
+  });
+});
 
 // ---------- Preset save/load ----------
 function renderPresetList() {

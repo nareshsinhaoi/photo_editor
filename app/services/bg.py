@@ -21,7 +21,7 @@ def _check_rembg() -> bool:
     global _REMBG_AVAILABLE
     if _REMBG_AVAILABLE is None:
         try:
-            import rembg  # noqa: F401
+            __import__("rembg")
             _REMBG_AVAILABLE = True
         except Exception:
             _REMBG_AVAILABLE = False

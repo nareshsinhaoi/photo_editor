@@ -10,6 +10,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
   let layers = [];
   let selectedId = null;
   let nextId = 1;
+  let imageBaseId = null;
   let lockAspect = true;
   const sources = new Map();
 
@@ -49,6 +50,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
 
     layers = [];
     selectedId = null;
+    imageBaseId = null;
     sources.clear();
     nextId = 1;
     renderAll();
@@ -72,8 +74,57 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     addSourceCanvasLayer(imgToCanvas(img), file.name.replace(/\.[^.]+$/, "").slice(0, 24) || "Layer");
   }
 
+  // Use the current uploaded image as the background for text and other layers.
+  // This keeps the composition size in sync with ordinary image uploads.
+  function setImageBase(sourceCanvas, name = "Image") {
+    if (!sourceCanvas?.width || !sourceCanvas?.height) return;
+
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
+    canvas.background = { mode: "transparent" };
+    const imageLayer = {
+      id: uid(),
+      name: (name || "Image").slice(0, 40),
+      sourceCanvas,
+      x: 0,
+      y: 0,
+      w: sourceCanvas.width,
+      h: sourceCanvas.height,
+      rotation: 0,
+      opacity: 100,
+      visible: true,
+    };
+    layers = [imageLayer];
+    imageBaseId = imageLayer.id;
+    selectedId = null;
+    renderAll();
+  }
+
+  function updateImageBase(sourceCanvas) {
+    if (!sourceCanvas?.width || !sourceCanvas?.height || !layers.length) return false;
+    const imageLayer = layers.find((l) => l.id === imageBaseId) || layers.find((l) => l.name === "Image") || layers[0];
+    imageLayer.sourceCanvas = sourceCanvas;
+    imageLayer.w = sourceCanvas.width;
+    imageLayer.h = sourceCanvas.height;
+    imageLayer.x = 0;
+    imageLayer.y = 0;
+    canvas.width = sourceCanvas.width;
+    canvas.height = sourceCanvas.height;
+    renderAll();
+    return true;
+  }
+
+  function ensureImageBase(sourceCanvas, name = "Image") {
+    if (!sourceCanvas?.width || !sourceCanvas?.height) return false;
+    if (!layers.length || !layers.some((l) => l.id === imageBaseId)) {
+      setImageBase(sourceCanvas, name);
+      return true;
+    }
+    return false;
+  }
+
   // Public: accept any canvas as a layer (used by text + sticker tools).
-  function addSourceCanvasLayer(sourceCanvas, name = "Layer") {
+  function addSourceCanvasLayer(sourceCanvas, name = "Layer", metadata = null) {
     const cw = canvas.width, ch = canvas.height;
     const r = Math.min(cw / sourceCanvas.width, ch / sourceCanvas.height, 1);
     const w = Math.max(8, Math.round(sourceCanvas.width * r));
@@ -89,10 +140,55 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
       rotation: 0,
       opacity: 100,
       visible: true,
+      ...(metadata ? { metadata } : {}),
     };
     layers.push(layer);
     selectedId = layer.id;
     renderAll();
+    if (metadata?.type === "text") {
+      window.dispatchEvent(new CustomEvent("text-layer-selected", { detail: { ...metadata } }));
+    }
+  }
+
+  function updateSelectedTextLayer(sourceCanvas, opts) {
+    const l = getSelected();
+    if (!l || l.metadata?.type !== "text") return false;
+    if (!sourceCanvas) return false;
+    return updateTextLayer(l.id, sourceCanvas, opts);
+  }
+
+  function updateTextLayer(id, sourceCanvas, opts) {
+    const l = layers.find((item) => item.id === id);
+    if (!l || l.metadata?.type !== "text" || !sourceCanvas) return false;
+
+    const centerX = l.x + l.w / 2;
+    const centerY = l.y + l.h / 2;
+    l.sourceCanvas = sourceCanvas;
+    l.metadata = { ...l.metadata, ...opts };
+    l.name = String(opts.text || "Text").trim().slice(0, 24) || "Text";
+    l.w = sourceCanvas.width;
+    l.h = sourceCanvas.height;
+    l.x = Math.round(centerX - l.w / 2);
+    l.y = Math.round(centerY - l.h / 2);
+    renderAll();
+    return true;
+  }
+
+  function getSelectedLayer() {
+    const l = getSelected();
+    return l ? { ...l, metadata: l.metadata ? { ...l.metadata } : null } : null;
+  }
+
+  function selectLayer(id) {
+    if (!layers.some((l) => l.id === id)) return false;
+    selectedId = id;
+    renderAll();
+    return true;
+  }
+
+  function getLayerById(id) {
+    const l = layers.find((item) => item.id === id);
+    return l ? { ...l, metadata: l.metadata ? { ...l.metadata } : null } : null;
   }
 
   function imgToCanvas(img) {
@@ -203,12 +299,21 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
         <div class="thumb" style="background-image:url('${thumbUrl}')"></div>
         <div class="name" title="${l.name}">${l.name}</div>
         <div class="actions">
+          ${l.metadata?.type === "text" ? '<button title="Edit text" data-action="edit-text">Edit Text</button>' : ""}
           <button title="Rename">✎</button>
           <button title="Delete">✕</button>
         </div>
       `;
       row.addEventListener("click", (e) => {
         if (e.target.closest(".eye")) { l.visible = !l.visible; renderAll(); return; }
+        if (e.target.closest('[data-action="edit-text"]')) {
+          selectedId = l.id;
+          renderAll();
+          window.dispatchEvent(new CustomEvent("text-layer-edit", {
+            detail: { id: l.id, ...l.metadata },
+          }));
+          return;
+        }
         if (e.target.closest("button[title='Rename']")) {
           const n = prompt("Layer name:", l.name);
           if (n) { l.name = n.slice(0, 40); renderAll(); }
@@ -217,6 +322,9 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
         if (e.target.closest("button[title='Delete']")) { deleteLayer(l.id); return; }
         selectedId = l.id;
         renderAll();
+        if (l.metadata?.type === "text") {
+          window.dispatchEvent(new CustomEvent("text-layer-selected", { detail: { ...l.metadata } }));
+        }
       });
       list.appendChild(row);
     });
@@ -226,6 +334,8 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     const l = getSelected();
     const dis = !l;
     ["#layer-opacity", "#layer-x", "#layer-y", "#layer-w", "#layer-h", "#layer-aspect-lock"].forEach((s) => $(s).disabled = dis);
+    const textEditButton = $("#btn-edit-text-layer");
+    if (textEditButton) textEditButton.classList.toggle("hidden", l?.metadata?.type !== "text");
     if (!l) return;
     $("#layer-opacity").value = l.opacity;
     $("#layer-x").value = Math.round(l.x);
@@ -324,6 +434,12 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     if (n) { l.name = n.slice(0, 40); renderAll(); }
   });
   $("#layer-delete").addEventListener("click", () => { const l = getSelected(); if (l) deleteLayer(l.id); });
+  $("#btn-edit-text-layer").addEventListener("click", () => {
+    const l = getSelected();
+    if (l?.metadata?.type === "text") {
+      window.dispatchEvent(new CustomEvent("text-layer-edit", { detail: { id: l.id, ...l.metadata } }));
+    }
+  });
 
   // ------------- pointer drag -------------
   let drag = null;
@@ -408,11 +524,27 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
 
     selectedId = hit.id;
     renderAll();
+    if (hit.metadata?.type === "text") {
+      window.dispatchEvent(new CustomEvent("text-layer-selected", { detail: { id: hit.id, ...hit.metadata } }));
+    }
 
     drag = { mode: "move", startX: p.x, startY: p.y, orig: { x: hit.x, y: hit.y, w: hit.w, h: hit.h } };
     try { overlay.setPointerCapture(e.pointerId); } catch (_) {}
     e.preventDefault();
     e.stopPropagation();
+  });
+
+  overlay.addEventListener("dblclick", (e) => {
+    const panel = document.querySelector('.panel-section[data-panel="layers"]');
+    if (!panel || panel.classList.contains("hidden")) return;
+    const p = pointInCanvas(e);
+    const hit = topLayerAt(p);
+    if (hit?.metadata?.type !== "text") return;
+
+    selectedId = hit.id;
+    renderAll();
+    window.dispatchEvent(new CustomEvent("text-layer-selected", { detail: { ...hit.metadata } }));
+    window.dispatchEvent(new CustomEvent("text-layer-edit", { detail: { id: hit.id, ...hit.metadata } }));
   });
 
   overlay.addEventListener("pointermove", (e) => {
@@ -490,13 +622,13 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
           width: canvas.width, height: canvas.height,
           background: bg,
           layers: payloadLayers,
-          format: format === "jpg" ? "jpg" : "png",
-          quality: 92,
+          format: format === "webp" ? "webp" : format === "jpg" ? "jpg" : "png",
+          quality: format === "png" ? 100 : 92,
         }),
       });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
-      downloadBlob(blob, `outlook-layers-${Date.now()}.${format === "jpg" ? "jpg" : "png"}`);
+      downloadBlob(blob, `outlook-layers-${Date.now()}.${format === "jpg" ? "jpg" : format === "webp" ? "webp" : "png"}`);
       toast("Exported layers");
     } catch (e) {
       toast(e.message, true);
@@ -530,6 +662,7 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
         x: l.x, y: l.y, w: l.w, h: l.h,
         opacity: l.opacity,
         visible: l.visible,
+        metadata: l.metadata ? { ...l.metadata } : null,
       })),
       selectedId,
       nextId,
@@ -557,11 +690,13 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
         rotation: 0,
         opacity: s.opacity ?? 100,
         visible: s.visible !== false,
+        metadata: s.metadata || null,
       });
     }
 
     layers = newLayers;
     selectedId = snapshot.selectedId ?? newLayers[newLayers.length - 1]?.id ?? null;
+    imageBaseId = newLayers[0]?.id ?? null;
     nextId = snapshot.nextId || (layers.length + 1);
     renderAll();
     return true;
@@ -572,6 +707,14 @@ export function initLayersPanel({ getRootCanvas, toast, busy }) {
     exportComposite,
     hasLayers: () => layers.length > 0,
     addSourceCanvasLayer,
+    updateSelectedTextLayer,
+    updateTextLayer,
+    getSelectedLayer,
+    selectLayer,
+    getLayerById,
+    setImageBase,
+    updateImageBase,
+    ensureImageBase,
     getState,
     setState,
   };

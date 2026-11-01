@@ -4,8 +4,8 @@ from PIL import Image
 from io import BytesIO
 import base64
 
-from app.config import UPLOAD_DIR
 from app.services.canvas_fit import fit_to_canvas
+from app.utils.validators import uploaded_image_path
 
 router = APIRouter()
 
@@ -21,7 +21,15 @@ class FitRequest(BaseModel):
 
 @router.post("/fit")
 def fit(req: FitRequest):
-    path = UPLOAD_DIR / f"{req.id}.png"
+    if req.width < 16 or req.height < 16 or req.width > 8000 or req.height > 8000:
+        raise HTTPException(400, "Dimensions must be between 16 and 8000 pixels")
+    if req.mode not in ("blur", "color", "transparent", "contain"):
+        raise HTTPException(400, "Invalid fit mode")
+    if req.anchor not in ("center", "north", "south", "east", "west"):
+        raise HTTPException(400, "Invalid fit anchor")
+    if len(req.color) != 4 or any(v < 0 or v > 255 for v in req.color):
+        raise HTTPException(400, "Invalid canvas color")
+    path = uploaded_image_path(req.id)
     if not path.exists():
         raise HTTPException(404, "Image not found")
 
