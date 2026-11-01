@@ -9,7 +9,7 @@ An advanced, web-based photo editor built with **FastAPI, Pillow, NumPy, and Van
 ---
 ## Application Preview
 
-![Photo Editor](/static/zmhqivc357m9_01a1988e-dbcb-72e0-8b40-6a0ba698899b.jpg)
+![Photo Editor](/app/static/zmhqivc357m9_01a1988e-dbcb-72e0-8b40-6a0ba698899b.jpg)
 
 ---
 
