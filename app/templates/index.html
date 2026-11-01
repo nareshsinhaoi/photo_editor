@@ -48,7 +48,7 @@
       <button data-panel="fit"       class="tool"><span class="ico">⇱</span>Canvas</button>
       <button data-panel="layers"    class="tool"><span class="ico">▤</span>Layers</button>
       <button data-panel="text"      class="tool"><span class="ico">T</span>Text</button>
-      <button data-panel="stickers"  class="tool"><span class="ico">☺</span>Stickers</button>
+      <button data-panel="elements"  class="tool"><span class="ico">✿</span>Elements</button>
       <button data-panel="collage"   class="tool"><span class="ico">▦</span>Collage</button>
       <button data-panel="metadata"  class="tool"><span class="ico">ⓘ</span>Info</button>
       <label class="tool upload-btn" title="Upload image">
@@ -258,7 +258,7 @@
             <label>Height <input type="number" id="new-h" min="16" max="8000" value="1080"></label>
           </div>
           <div class="preset-grid" style="grid-template-columns:repeat(2,1fr)">
-            <button data-new-preset="1080x1080">1080×1080 Sq</button>
+            <button data-new-preset="1280x720">1280×720 Pt</button>
             <button data-new-preset="1080x1350">1080×1350 Pt</button>
             <button data-new-preset="1920x1080">1920×1080 Ld</button>
             <button data-new-preset="1200x628">1200×628 Bn</button>
@@ -330,12 +330,13 @@
           <button id="layer-rename">Rename</button>
           <button id="layer-delete" class="primary" style="background:var(--danger);border-color:var(--danger)">Delete</button>
         </div>
+        <button id="btn-edit-text-layer" class="primary hidden" style="width:100%">Edit Text Layer</button>
       </div>
 
       <!-- TEXT -->
       <div class="panel-section hidden" data-panel="text">
         <h3>Add Text</h3>
-        <p class="hint">Text is added as a layer you can drag, resize and reorder.</p>
+        <p class="hint">Select a text layer in the Layers panel or double-click it on the canvas. Its text, font and background can then be edited here live.</p>
 
         <label>Text
           <textarea id="text-input" rows="2" placeholder="Type here…"></textarea>
@@ -367,6 +368,20 @@
           <label>Color <input type="color" id="text-color" value="#111111"></label>
         </div>
 
+        <div class="grid-2">
+          <label>Text background
+            <select id="text-background-mode">
+              <option value="none">None</option>
+              <option value="color">Color</option>
+            </select>
+          </label>
+          <label>Background color <input type="color" id="text-background-color" value="#ffffff"></label>
+        </div>
+        <label class="adj-label">
+          <span class="adj-head"><span>Background padding</span><span class="adj-value" data-for="text-background-padding">18</span></span>
+          <input type="range" id="text-background-padding" min="0" max="80" value="18">
+        </label>
+
         <label class="adj-label">
           <span class="adj-head"><span>Letter spacing</span><span class="adj-value" data-for="text-spacing">0</span></span>
           <input type="range" id="text-spacing" min="-10" max="40" value="0">
@@ -383,19 +398,44 @@
           <button id="text-outline-toggle">Outline: Off</button>
         </div>
 
-        <button id="btn-add-text" class="primary" style="width:100%;margin-top:12px">Add Text Layer</button>
+        <button id="btn-edit-selected-text" class="primary hidden" style="width:100%;margin-bottom:8px">Edit Text Layer</button>
+        <button id="btn-add-text" class="primary" style="width:100%">Add Text Layer</button>
       </div>
 
-      <!-- STICKERS -->
-      <div class="panel-section hidden" data-panel="stickers">
-        <h3>Emoji</h3>
-        <div class="sticker-grid" id="sticker-emoji"></div>
+      <!-- ELEMENTS -->
+      <div class="panel-section hidden" data-panel="elements">
+        <div class="element-heading">
+          <h3>Elements</h3>
+          <label class="element-upload" title="Upload your own element">
+            ＋
+            <input type="file" id="element-file" accept="image/*" multiple hidden>
+          </label>
+        </div>
 
-        <h3>Shapes</h3>
-        <label>Shape color <input type="color" id="sticker-color" value="#4f46e5"></label>
-        <div class="sticker-grid" id="sticker-shapes"></div>
+        <div class="element-categories" aria-label="Element categories">
+          <button type="button" data-element-category="all" class="active">All</button>
+          <button type="button" data-element-category="shapes">Shapes</button>
+          <button type="button" data-element-category="graphics">Graphics</button>
+          <button type="button" data-element-category="uploads">Uploads</button>
+        </div>
 
-        <p class="hint">Click any sticker to add it as a layer. Drag on the canvas to position it.</p>
+        <div id="element-uploads-section">
+          <h3>Your uploads</h3>
+          <div class="element-uploads" id="element-uploads"></div>
+        </div>
+
+        <div id="element-shapes-section">
+          <h3>Shapes</h3>
+          <label>Shape color <input type="color" id="sticker-color" value="#4f46e5"></label>
+          <div class="sticker-grid" id="sticker-shapes"></div>
+        </div>
+
+        <div id="element-graphics-section">
+          <h3>Graphics</h3>
+          <div class="sticker-grid" id="sticker-emoji"></div>
+        </div>
+
+        <p class="hint">Click a shape, graphic or uploaded image to add it as an editable image layer.</p>
       </div>
 
       <!-- COLLAGE -->
@@ -520,7 +560,7 @@
       <span class="sep">·</span>
       <a href="https://github.com/nareshsinhaoi" target="_blank" rel="noopener" class="credit-link">@nareshsinhaoi</a>
       <span class="sep">/</span>
-      <span class="version">v1.2.0</span>
+      <span class="version">v1.3.0</span>
     </div>
   </footer>
 
@@ -543,9 +583,79 @@
     </div>
   </div>
 
+  <div class="modal hidden" id="text-edit-modal" role="dialog" aria-modal="true" aria-labelledby="text-edit-title">
+    <div class="modal-content text-edit-modal-content">
+      <h3 id="text-edit-title">Edit Text Layer</h3>
+
+      <label>Text
+        <textarea id="modal-text-input" rows="3"></textarea>
+      </label>
+
+      <div class="grid-2">
+        <label>Font
+          <select id="modal-text-font">
+            <option value="Inter, system-ui, sans-serif">Inter</option>
+            <option value="Georgia, serif">Georgia</option>
+            <option value="'Times New Roman', serif">Times</option>
+            <option value="'Courier New', monospace">Courier</option>
+            <option value="Impact, sans-serif">Impact</option>
+            <option value="'Brush Script MT', cursive">Brush Script</option>
+          </select>
+        </label>
+        <label>Weight
+          <select id="modal-text-weight">
+            <option value="400">Regular</option>
+            <option value="600">Semibold</option>
+            <option value="700">Bold</option>
+            <option value="900">Black</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid-2">
+        <label>Size (px) <input type="number" id="modal-text-size" min="8" max="400"></label>
+        <label>Text color <input type="color" id="modal-text-color"></label>
+      </div>
+
+      <div class="grid-2">
+        <label>Background
+          <select id="modal-text-background-mode">
+            <option value="none">None</option>
+            <option value="color">Color</option>
+          </select>
+        </label>
+        <label>Background color <input type="color" id="modal-text-background-color"></label>
+      </div>
+
+      <label>Background padding
+        <input type="range" id="modal-text-background-padding" min="0" max="80" value="18">
+      </label>
+
+      <label>Letter spacing
+        <input type="range" id="modal-text-spacing" min="-10" max="40" value="0">
+      </label>
+
+      <div class="row">
+        <button class="modal-text-align" data-align="left">Left</button>
+        <button class="modal-text-align" data-align="center">Center</button>
+        <button class="modal-text-align" data-align="right">Right</button>
+      </div>
+
+      <div class="row">
+        <button id="modal-text-shadow-toggle">Shadow: Off</button>
+        <button id="modal-text-outline-toggle">Outline: Off</button>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-cancel-text-edit">Cancel</button>
+        <button id="btn-save-text-edit" class="primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
   <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="false"></div>
   <div id="loader" class="loader hidden"><div class="spinner"></div></div>
 
-  <script type="module" src="/static/js/main.js"></script>
+  <script type="module" src="/static/js/main.js?v=20261101"></script>
 </body>
 </html>

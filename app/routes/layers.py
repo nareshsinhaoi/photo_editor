@@ -41,10 +41,25 @@ def render(req: CollageRenderRequest):
         raise HTTPException(400, f"Unknown template: {req.template}")
     if not req.images:
         raise HTTPException(400, "No images provided")
-    if req.width < 64 or req.height < 64:
+    if req.width < 64 or req.height < 64 or req.width > 8000 or req.height > 8000:
         raise HTTPException(400, "Output too small")
+    if req.gap < 0 or req.gap > 500 or req.border < 0 or req.border > 500 or req.radius < 0 or req.radius > 500:
+        raise HTTPException(400, "Invalid collage spacing or border")
+    if req.quality < 1 or req.quality > 100:
+        raise HTTPException(400, "Quality must be between 1 and 100")
+    if len(req.bg) not in (3, 4) or any(v < 0 or v > 255 for v in req.bg):
+        raise HTTPException(400, "Invalid background color")
+    if len(req.images) > 20:
+        raise HTTPException(400, "Too many collage images")
+    if len(req.cells) > 20:
+        raise HTTPException(400, "Too many collage cells")
+    if req.format.lower() not in ("png", "jpg", "jpeg", "webp"):
+        raise HTTPException(400, "Unsupported export format")
 
-    images = dataurls_to_images(req.images)
+    try:
+        images = dataurls_to_images(req.images)
+    except (ValueError, OSError, TypeError) as exc:
+        raise HTTPException(400, "Invalid collage image data") from exc
     cells = [c.model_dump() for c in req.cells]
 
     img = render_collage(
@@ -63,6 +78,9 @@ def render(req: CollageRenderRequest):
     if fmt in ("jpg", "jpeg"):
         img.convert("RGB").save(buf, "JPEG", quality=req.quality, optimize=True)
         media = "image/jpeg"; ext = "jpg"
+    elif fmt == "webp":
+        img.save(buf, "WEBP", quality=req.quality, method=6)
+        media = "image/webp"; ext = "webp"
     else:
         img.save(buf, "PNG", optimize=True)
         media = "image/png"; ext = "png"

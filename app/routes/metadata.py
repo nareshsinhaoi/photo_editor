@@ -1,10 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from PIL import Image
-from io import BytesIO
-import base64
-
-from app.config import UPLOAD_DIR
+from app.utils.validators import uploaded_image_path
 from app.services.metadata import read_metadata, write_metadata
 
 router = APIRouter()
@@ -18,7 +15,7 @@ class MetadataUpdate(BaseModel):
 
 @router.get("/metadata/{image_id}")
 def get_metadata(image_id: str):
-    path = UPLOAD_DIR / f"{image_id}.png"
+    path = uploaded_image_path(image_id)
     if not path.exists():
         raise HTTPException(404, "Image not found")
     with Image.open(path) as img:
@@ -27,7 +24,7 @@ def get_metadata(image_id: str):
 
 @router.post("/metadata")
 def update_metadata(req: MetadataUpdate):
-    path = UPLOAD_DIR / f"{req.id}.png"
+    path = uploaded_image_path(req.id)
     if not path.exists():
         raise HTTPException(404, "Image not found")
 

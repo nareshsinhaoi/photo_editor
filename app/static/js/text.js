@@ -2,7 +2,7 @@
 // Produces a canvas at high resolution so the layer model treats it identically
 // to an image layer: draggable, resizable, reorderable, exportable.
 
-const SUPERSAMPLE = 2;   // render text at 2x for crisp edges after scaling
+const SUPERSAMPLE = 1;   // Keep canvas dimensions aligned with the selected font size.
 
 export function createTextCanvas(opts) {
   const {
@@ -11,6 +11,8 @@ export function createTextCanvas(opts) {
     weight = "700",
     size = 72,
     color = "#111111",
+    backgroundColor = "",
+    backgroundPadding = 18,
     align = "left",
     letterSpacing = 0,
     shadow = false,
@@ -44,6 +46,21 @@ export function createTextCanvas(opts) {
   c.width = Math.max(4, W);
   c.height = Math.max(4, H);
   const ctx = c.getContext("2d");
+
+  if (backgroundColor) {
+    ctx.fillStyle = backgroundColor;
+    const bgPad = backgroundPadding * ss;
+    const bgX = Math.max(0, pad - bgPad);
+    const bgY = Math.max(0, pad - bgPad);
+    const bgW = Math.min(c.width - bgX, maxW + bgPad * 2);
+    const bgH = Math.min(c.height - bgY, lineHeight * lines.length + bgPad * 2);
+    ctx.fillRect(
+      bgX, bgY,
+      Math.max(1, bgW),
+      Math.max(1, bgH)
+    );
+  }
+
   ctx.textBaseline = "top";
   ctx.font = fontSpec;
   ctx.fillStyle = color;

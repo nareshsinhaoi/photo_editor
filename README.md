@@ -129,7 +129,7 @@ python run.py
 
 Open the following URL in your browser:
 
-[**http://127.0.0.1:8000**](http://127.0.0.1:8000)
+[**http://127.0.0.1:8005**](http://127.0.0.1:8005)
 
 You can now start editing images, creating layers, building collages, and exporting your work.
 

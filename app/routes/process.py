@@ -4,7 +4,7 @@ from PIL import Image
 from io import BytesIO
 import base64
 
-from app.config import UPLOAD_DIR
+from app.utils.validators import uploaded_image_path
 from app.services.adjustments import apply_adjustments
 from app.services.filters import apply_filter, vignette, grain
 
@@ -19,9 +19,13 @@ class ProcessRequest(BaseModel):
 
 @router.post("/process")
 def process(req: ProcessRequest):
-    path = UPLOAD_DIR / f"{req.id}.png"
+    path = uploaded_image_path(req.id)
     if not path.exists():
         raise HTTPException(404, "Image not found")
+    if req.adjustments is None or not isinstance(req.adjustments, dict):
+        raise HTTPException(400, "Invalid adjustments")
+    if req.vignette < 0 or req.vignette > 100 or req.grain < 0 or req.grain > 100:
+        raise HTTPException(400, "Effect values must be between 0 and 100")
 
     img = Image.open(path).convert("RGBA")
     alpha = img.getchannel("A")

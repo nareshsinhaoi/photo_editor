@@ -1,6 +1,6 @@
 """One-click preset filters + vignette/grain."""
 import numpy as np
-from PIL import Image, ImageEnhance, ImageFilter
+from PIL import Image, ImageEnhance
 
 def _to_array(img):
     return np.asarray(img.convert("RGB")).astype(np.float32)

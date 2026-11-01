@@ -31,7 +31,6 @@ Prints a Flask-style startup banner so the LAN URL is obvious.
 
 import os
 import socket
-import sys
 import uvicorn
 
 
