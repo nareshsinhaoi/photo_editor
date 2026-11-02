@@ -9,7 +9,7 @@ from fastapi.requests import Request
 from app.config import STATIC_DIR, TEMPLATES_DIR
 from app.routes import upload, process, export, metadata, canvas_fit, layers, collage, bg, admin
 
-app = FastAPI(title="Outlook Studio")
+app = FastAPI(title="Kite Studio")
 
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
