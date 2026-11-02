@@ -104,11 +104,11 @@ export function refreshSliderReadouts(state) {
 }
 
 // ---------- Dynamic tab title (roadmap #7) ----------
-const BASE_TITLE = "Outlook Studio — Free Online Photo Editor";
+const BASE_TITLE = "Kite Studio — Free Online Photo Editor";
 
 export function setDocumentTitle(parts = []) {
   const suffix = parts.filter(Boolean).join(" · ");
-  document.title = suffix ? `${suffix} — Outlook Studio` : BASE_TITLE;
+  document.title = suffix ? `${suffix} — Kite Studio` : BASE_TITLE;
 }
 
 // ---------- Cursor styles for canvas regions (roadmap #4) ----------
